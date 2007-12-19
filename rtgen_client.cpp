@@ -17,8 +17,13 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <sys/stat.h> // For mkdir()
+#include <sys/resource.h> //renice main thread
+#define CPU_INFO_FILENAME "/proc/cpuinfo"
 #endif
+#define MAX_PART_SIZE 8000000 //size of PART file
 #define CLIENT_WAIT_TIME_SECONDS 600 // Wait 10 min and try again
+#define VERSION "3.0"
+
 enum TALKATIVE
 {
 	TK_ALL = 0,
@@ -30,11 +35,13 @@ int main(int argc, char* argv[])
 
 	std::string sUsername;
 	std::string sPassword;
-	std::string sProcessors;
+	double nFrequency;
+	std::string sHostname;
 	std::string sHomedir;
 	int nNumProcessors = 0;
 	int nClientID;
     int nTalkative = TK_ALL;
+	
 	if(argc > 1)
 	{
 		if(strcmp(argv[1], "-q") == 0)
@@ -54,6 +61,7 @@ int main(int argc, char* argv[])
 	sHomedir = userinfo->pw_dir;
 	sClientInfo << sHomedir  << "/.distrrtgen/";
 #endif
+	
 	sClientInfo << ".client";
 	std::fstream fClientInfo(sClientInfo.str().c_str(), std::fstream::in);
 
@@ -78,10 +86,11 @@ int main(int argc, char* argv[])
 //	std::string sUsername, sPassword;
 	fConfig >> sUsername;
 	fConfig >> sPassword;
-	fConfig >> sProcessors;
+	fConfig >> sHostname;
 	fConfig.close();
 	sUsername = sUsername.substr(9);
 	sPassword = sPassword.substr(9);
+	sHostname = sHostname.substr(9);
 	if(sUsername == "")
 	{
 		std::cout << "No username configured in " << sConf.str() << std::endl;
@@ -92,12 +101,72 @@ int main(int argc, char* argv[])
 		std::cout << "No password configured in " << sConf.str() << std::endl;
 		return 1;
 	}
-	if(sProcessors.substr(7).length() > 0) // Check if processor count is manually configured
+	if(sHostname == "")
 	{
-		nNumProcessors = atoi(sProcessors.substr(7).c_str());
+		std::cout << "No Hostname configured in " << sConf.str() << std::endl;
+		return 1;
 	}
+	
+	//if(sProcessors.substr(7).length() > 0) // Check if processor count is manually configured
+	//{
+	//	nNumProcessors = atoi(sProcessors.substr(7).c_str());
+	//}
 	// If numprocessors is 0, RainbowTableGenerator.cpp will try to detect it itself
-
+	
+	// Try to catch cpu Frequency from /proc/cpuinfo
+	#ifndef WIN32
+	const char* cpuprefix = "cpu MHz";
+	const char* cpunumber = "processor";
+	FILE* F;
+	char cpuline[300+1];
+	char* pos;
+	int ok = 0;
+	nNumProcessors = 0;
+	
+	// open cpuinfo system file
+	F = fopen(CPU_INFO_FILENAME,"r");
+	if (!F) return 0;
+	
+	//read lines
+	while (!feof(F))
+  	{
+    fgets (cpuline, sizeof(cpuline), F);
+	//test if it's a processor id line
+	if (!strncmp(cpuline, cpunumber, strlen(cpunumber)))
+	{
+		if(nTalkative <= TK_ALL)
+		std::cout << ++nNumProcessors <<" processor(s) found." << std::endl;
+	}
+		
+    // test if it's the frequency line
+    if (!strncmp(cpuline, cpuprefix, strlen(cpuprefix)))
+    	{
+      		// Yes, grep the frequency
+      		pos = strrchr (cpuline, ':') +2;
+      		if (!pos) break;
+      		if (pos[strlen(pos)-1] == '\n') pos[strlen(pos)-1] = '\0';
+      		strcpy (cpuline, pos);
+      		strcat (cpuline,"e6");
+      		nFrequency = atof (cpuline)/1000000;
+      		ok = 1;
+      		break;
+    	}
+  	}
+	
+	if (ok == 1)
+	{
+		if(nTalkative <= TK_ALL)
+			std::cout << "CPU frequency has been found : " << nFrequency << " MHz" << std::endl;
+	}
+	else
+	{
+		if(nTalkative <= TK_ALL)
+			std::cout << "Unable to get cpu frequency from /proc/cpuinfo." << std::endl;
+		exit(-1);
+	}
+	
+	#endif
+	
 	// Check to see if there is something to resume from
 	stWorkInfo stWork;
 	std::ostringstream sResumeFile;
@@ -108,7 +177,6 @@ int main(int argc, char* argv[])
 	FILE *file = fopen(sResumeFile.str().c_str(), "rb");
 	if(file != NULL)
 	{
-		/*
 		// Bingo.. There is a resume file.
 		fread(&stWork, sizeof(unsigned int), 6, file);
 		char buf[8096];
@@ -126,14 +194,90 @@ int main(int argc, char* argv[])
 		pHR++;
 		strcpy(&szHR[0], pHR);
 		stWork.sSalt.assign(szHR);
-		if(nTalkative <= TK_ALL)
-			std::cout << "Continuing interrupted computations..." << std::endl;
-			*/
+		//before continuing, test if part file is <8MB sized
+		const char * cFileName;
+		std::string sFileName;
+		std::stringstream szFileName;
+		szFileName << sHomedir << "/.distrrtgen/" << stWork.nPartID << ".part"; // Store it in the users home directory
+		sFileName = szFileName.str();
+		cFileName = sFileName.c_str();
+		FILE *partfile = fopen(cFileName,"rb");
+		long size;
+		if(partfile != NULL)
+		{
+			fseek(partfile,0,SEEK_END);
+			size=ftell(partfile);
+			rewind(partfile);
+			fclose(partfile);
+		}
+		std::cout << "Part file size (in bytes) : " << size << std::endl;
+			
+		if (size==MAX_PART_SIZE)
+		{
+			if(nTalkative <= TK_ALL)
+			std::cout << "File completed... try uploading" << std::endl;
+			ServerConnector *Con = new ServerConnector();
+			while(1)
+				{
+					try
+					{
+						Con->Connect(); //deprecated
+						if(!Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency))
+							exit(0);
+						
+						int nResult = Con->SendFinishedWork(stWork.nPartID, szFileName.str(), sUsername, sPassword);
+						Con->Disconnect(); // Deprecated with XML/HTTP (destroy Con object)
+						switch(nResult)			
+						{
+						case TRANSFER_OK:
+							if(nTalkative <= TK_ALL)
+								std::cout << "Data delivered!" << std::endl;
+							break;
+						case TRANSFER_NOTREGISTERED:
+							if(nTalkative <= TK_ALL)
+								std::cout << "Data was not accepted by the server. Dismissing" << std::endl;
+							break;
+						case TRANSFER_GENERAL_ERROR:
+							if(nTalkative <= TK_ALL)
+								std::cout << "Could not transfer data to server. Retrying in " << CLIENT_WAIT_TIME_SECONDS / 60 << " minutes" << std::endl;
+							Sleep(CLIENT_WAIT_TIME_SECONDS * 1000);
+							continue;
+						}
+						break;
+					}
+					catch(SocketException *ex)
+					{
+						std::cout << "Error connecting to server: " << ex->GetErrorMessage() << ". Retrying in " << CLIENT_WAIT_TIME_SECONDS / 60 << " minutes" << std::endl;
+						delete ex;
+						Sleep(CLIENT_WAIT_TIME_SECONDS * 1000);
+					}
+					catch(ConnectionException *ex)
+					{
+						if(ex->GetErrorLevel() >= nTalkative)
+							std::cout << ex->GetErrorMessage() << ". Retrying in " << CLIENT_WAIT_TIME_SECONDS / 60 << " minutes" << std::endl;
+						delete ex;
+						Sleep(CLIENT_WAIT_TIME_SECONDS * 1000);
+					}
+				}
+				remove(szFileName.str().c_str());		
+				stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
+				unlink(".resume");
+		}
+		else
+		{
+			
+			// We delete the old part file
+			/*char * cDeleteFile;
+			sprintf(cDeleteFile, "/bin/rm -f %s", cFileName);
+			system(cDeleteFile);*/
+			if(nTalkative <= TK_ALL)	
+			std::cout << "Delete Part file and restart interrupted computations..." << std::endl;
+		}
 	}
 	try
 	{
 		if(nTalkative <= TK_ALL)
-			std::cout << "Initializing DistrRTgen" << std::endl;
+			std::cout << "Initializing DistrRTgen " << VERSION << std::endl;
 		CRainbowTableGenerator *pGenerator = new CRainbowTableGenerator(nNumProcessors);
 		if(nTalkative <= TK_ALL)
 			std::cout << "Generating using " << pGenerator->GetProcessorCount() << " processor(s)..." << std::endl;
@@ -141,7 +285,8 @@ int main(int argc, char* argv[])
 
 		while(1)
 		{
-
+			//renice main thread to 0.
+			setpriority(PRIO_PROCESS, 0, 0);
 			try
 			{
 				if(nClientID == 0) // This client doesn't have an ID. 
@@ -149,15 +294,15 @@ int main(int argc, char* argv[])
 					//ServerConnector *Con = new ServerConnector();
 					if(nTalkative <= TK_ALL)
 						std::cout << "Connecting to server to perform first time registration...";
-					Con->Connect();
+					//Con->Connect(); //useless
 					if(nTalkative <= TK_ALL)
 					{
 						std::cout << "OK" << std::endl;
 						std::cout << "Performing logon...";
 					}
-					nClientID = Con->Login(sUsername, sPassword, nClientID);
+					nClientID = Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency);
 					if(nTalkative <= TK_ALL)
-						std::cout << "OK" << std::endl;
+						std::cout << "client num : " << nClientID << std::endl;
 					std::fstream fClient(sClientInfo.str().c_str(), std::fstream::out);
 					if(fClient.is_open() == false)
 					{
@@ -183,15 +328,15 @@ int main(int argc, char* argv[])
 						std::cout << "OK" << std::endl;
 						std::cout << "Performing logon...";
 					}
-					Con->Login(sUsername, sPassword, nClientID);
+					Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency);
 					if(nTalkative <= TK_ALL)
 					{
 						std::cout << "OK" << std::endl;
 						std::cout << "Requesting work...";
 					}
-					Con->RequestWork(&stWork);
+					Con->RequestWork(&stWork, sUsername, sPassword, sHostname, nClientID, nFrequency);
 					if(nTalkative <= TK_ALL)
-						std::cout << "work recieved!" << std::endl;
+						std::cout << "work received !" << std::endl;
 					FILE *fileResume = fopen(sResumeFile.str().c_str(), "wb");
 					if(fileResume == NULL)
 					{
@@ -207,9 +352,9 @@ int main(int argc, char* argv[])
 				}
 				std::stringstream szFileName;
 #ifdef WIN32
-				szFileName << stWork.nPartID << ".rt";
+				szFileName << stWork.nPartID << ".part";
 #else
-				szFileName << sHomedir << "/.distrrtgen/" << stWork.nPartID << ".rt"; // Store it in the users home directory
+				szFileName << sHomedir << "/.distrrtgen/" << stWork.nPartID << ".part"; // Store it in the users home directory
 #endif
 				// do the work
 				int nReturn;
@@ -224,7 +369,7 @@ int main(int argc, char* argv[])
 				{
 					if(nTalkative >= TK_WARNINGS)
 						std::freopen("/dev/stdout", "w", stdout);	
-					std::cout << "Error id " << nReturn << " recieved while generating table";
+					std::cout << "Error id " << nReturn << " received while generating table";
 					return nReturn;
 				}
 #ifndef WIN32
@@ -238,8 +383,8 @@ int main(int argc, char* argv[])
 					try
 					{
 						Con->Connect();
-						Con->Login(sUsername, sPassword, nClientID);
-						int nResult = Con->SendFinishedWork(stWork.nPartID, szFileName.str());
+						Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency);
+						int nResult = Con->SendFinishedWork(stWork.nPartID, szFileName.str(), sUsername, sPassword);
 						Con->Disconnect();
 						switch(nResult)			
 						{
@@ -300,4 +445,3 @@ int main(int argc, char* argv[])
 	}
   return 0;
 }
-

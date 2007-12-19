@@ -1,3 +1,18 @@
+DistrRTgen 3.0 BETA
+
+Very very short readme lines :
+
+Added in $HOME/.distrrtgen/distrrtgen.conf a HostName param.
+You will need libssl-dev, libcurl-dev in order to compile the binary
+
+# make configure
+# make
+
+And complete the params of distrrtgen.conf.
+
+====================================================
+
+
 DistrRTgen 1.0 readme
 
 DistrRTgen is a Distributed Rainbow Table Generation client. Our goal was to enable our community to contribute to the generation of 

@@ -4,9 +4,48 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <curl/curl.h>
+#include <curl/types.h>
+#include <curl/easy.h>
 #include "config.h"
-#define SERVER_PORT 23984
-#define SERVER_NAME "distributed.freerainbowtables.com"
+#include "tinyxml.h"
+#define SERVER_PORT 80
+#define SERVER_NAME "http://distributed.freerainbowtables.com/communicate.php"
+#define UPLOAD_URL "http://distributed.freerainbowtables.com/upload.php"
+#ifndef VERSION
+	#define VERSION "3.0"
+#endif
+
+struct MemoryStruct {
+    char *memory;
+    size_t size;
+};
+
+// There might be a realloc() out there that doesn't like reallocing
+// NULL pointers, so we take care of it here */
+static void *myrealloc(void *ptr, size_t size)
+{
+    if(ptr)
+      return realloc(ptr, size);
+    else
+      return malloc(size);
+}
+
+// Static function to retrieve server XML answers on HTTP protocol - used with CURL
+static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *data)
+{
+    size_t realsize = size * nmemb;
+    struct MemoryStruct *mem = (struct MemoryStruct *)data;
+  
+    mem->memory = (char *)myrealloc(mem->memory, mem->size + realsize + 1);
+    if (mem->memory) {
+      memcpy(&(mem->memory[mem->size]), ptr, realsize);
+      mem->size += realsize;
+      mem->memory[mem->size] = 0;
+    }
+    return realsize;
+}
+
 ServerConnector::ServerConnector(void)
 {
 	bLoggedIn = false;
@@ -23,167 +62,301 @@ ServerConnector::~ServerConnector(void)
 }
 
 int ServerConnector::Connect()
-{
-	try
-	{
-		std::vector<unsigned char> vVersion;
-		vVersion.push_back(0xfc);
-		vVersion.push_back(0x01);
-		vVersion.push_back(0x01);
-		vVersion.push_back(PROTOCOL_VERSION);
-
-		s = new CClientSocket(1, IPPROTO_TCP, SERVER_NAME, SERVER_PORT);					
-		*s << vVersion;
-		std::vector<unsigned char> vVerResponse;
-		*s >> vVerResponse;
-		if(vVerResponse.size() < 4 || vVerResponse[0] != (unsigned char)0xfc || vVerResponse[1] != (unsigned char)0x01 || vVerResponse[2] != (unsigned char)0x02) 
-		{
-			throw new ConnectionException(EL_NOTICE, "Invalid response recieved from server");
-		}
-		if(vVerResponse[3] == (unsigned char)0x00 || vVerResponse[3] == (unsigned char)0x02)
-		{  // If 0x02, dont show the message, but just show a standard message
-			throw new ConnectionException(EL_ERROR, "DistrRTgen client is out of date. Please go to www.freerainbowtables.com and download the newest version");
-		}
-		return true;
-	}
-	catch(SocketException *ex)
-	{		
-		throw new ConnectionException(EL_NOTICE, ex->GetErrorMessage());
-	}
-	return false;
+{		
+	// deprecated since we use HTTP protocol
+	// TODO : Add a simple http connect to verify server is up...
+	return true;
 }
+
 void ServerConnector::Disconnect()
 {
-	std::ostringstream sDisc; // Send a disconnection packet
-	sDisc << (unsigned char)0xfc << (unsigned char)0x07 << (unsigned char)0x00 << (unsigned char)0x00;
-	*s << sDisc.str();
+	//commented by alesc <alexis.dagues@gmail.com> no need with HTTP
+	//std::ostringstream sDisc; // Send a disconnection packet
+	//sDisc << (unsigned char)0xfc << (unsigned char)0x07 << (unsigned char)0x00 << (unsigned char)0x00;
+	//*s << sDisc.str();
 	delete s;
 	s = NULL;
 }
-int ServerConnector::Login(std::string sUsername, std::string sPassword, int nClientID)
+int ServerConnector::Login(std::string sUsername, std::string sPassword, std::string sHostname, int nClientID, double nFrequency)
 {
 	try
 	{
-		nClientID = htonl(nClientID); // Convert it to network format
-		std::ostringstream sLogin;
-		sLogin << (unsigned char)0xfc << (unsigned char)0x02 << (unsigned char)0x01 << (unsigned char)0x00 << sUsername << (unsigned char)0x00 << sPassword  << (unsigned char)0x00;
-		sLogin.write((const char*)&nClientID, 4);
-		*s << sLogin.str();
-		//std::string r;
-		std::vector<unsigned char> vLogin;
-		*s >> vLogin;
-		if(vLogin.size() < 4 || vLogin[0] != (unsigned char)0xfc || vLogin[1] != (unsigned char)0x02 || vLogin[2] != (unsigned char)0x02) 
+		// build xml stream to logon the server
+		CURL *curl;
+  		CURLcode res;
+  		struct curl_slist *headers = NULL;
+  		headers = curl_slist_append(headers, "Content-Type: text/xml");
+  		TiXmlDocument doc;
+  		TiXmlElement* client;
+  		client = new TiXmlElement( "distrrtgenclient" );
+  		//if (nClientID==0) std::cout<<"This machine has no ClientID" << std::endl;
+		client->SetAttribute("clientid", nClientID);
+  		client->SetAttribute("name", sHostname.c_str());
+  		client->SetAttribute("version", VERSION);
+  
+  		TiXmlElement* cpus;
+  		TiXmlElement* cpu;
+  		cpus = new TiXmlElement( "cpus" );
+  		cpu  = new TiXmlElement( "cpu" );		
+  		cpu->SetAttribute("currentspeed", (int)nFrequency);
+  		cpu->SetAttribute("maxspeed", (int)nFrequency);
+  		cpus->LinkEndChild(cpu);
+  		TiXmlElement* credentials;
+  		credentials = new TiXmlElement( "credentials");
+  		TiXmlElement* username;
+  		username = new TiXmlElement("username");
+  		username->LinkEndChild(new TiXmlText(sUsername.c_str()));
+  		TiXmlElement* password;
+  		password = new TiXmlElement("password");
+  		password->LinkEndChild(new TiXmlText(sPassword.c_str()));
+  		credentials->LinkEndChild(username);
+  		credentials->LinkEndChild(password);
+  		client->LinkEndChild(cpus);
+  		client->LinkEndChild(credentials);
+  
+  		doc.LinkEndChild(client);
+  		//doc.SaveFile("test1.xml");
+  		//doc.Print();
+  		TiXmlPrinter login;
+  		doc.Accept(&login);
+  		//FILE* xmlresponse;
+		//xmlresponse = fopen("result.xml", "wb");
+ 		struct MemoryStruct xmlresponse;
+  		xmlresponse.memory=NULL; /* we expect realloc(NULL, size) to work */
+  		xmlresponse.size = 0;    /* no data at this point */
+		
+  		curl = curl_easy_init();
+  		if(curl) {
+    		curl_easy_setopt(curl, CURLOPT_URL, SERVER_NAME);
+    		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&xmlresponse);
+    		curl_easy_setopt(curl, CURLOPT_POST, 1);
+    		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, login.CStr());
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+    		res = curl_easy_perform(curl);
+    		curl_easy_cleanup(curl);
+  		}
+		
+  		//std::cout << xmlresponse.memory << std::endl;
+		TiXmlDocument xLoginAnswer;
+		if(xLoginAnswer.Parse(xmlresponse.memory))
 		{
-			throw new ConnectionException(EL_NOTICE, "Invalid response recieved from server");
+			//std::cout << "Parsing OK" << std::endl;
 		}
-		if(vLogin[3] == (unsigned char)0x01)
+		else
 		{
-			if(nClientID == 0)
-			{ // We need to register a new client..
-				std::ostringstream sNewClient;
-				int nNumProcessors = 1;
-				int nSpeed1 = htonl(2200);
-				sNewClient << (unsigned char)0xfc << (unsigned char)0x03 << (unsigned char)0x01 << (unsigned char)0x00;
-				*s << sNewClient.str();
-				std::string sRecieve;
-				*s >> sRecieve;
-				const char *ptr = sRecieve.c_str();
-				if(ptr[0] != (char)0xfc || ptr[1] != (char)0x03 || ptr[2] != (char)0x02 || ptr[3] != (char)0x01)
+			throw new ConnectionException(EL_ERROR, "Invalid XML response received from server");
+		}
+		//Check if the server gave a clientId and we return it.
+		//Else we continue login process.
+		//All the parsing code has to be reviewed
+		//we never check element name before attribute querying...
+		
+		TiXmlElement * pElem = xLoginAnswer.FirstChildElement("distrrtgenserver");
+	 	TiXmlAttribute * pAttrib;
+		
+		if( pElem->FirstChildElement("client") )
+		{
+			pElem = pElem->FirstChildElement("client");
+			std::cout << "This client was unregistered." << std::endl;
+			return atoi(pElem->Attribute("id"));
+			throw new ConnectionException(EL_ERROR, "This client was unregistered.");
+		}
+		else
+		{			
+			if ( pElem->FirstChildElement("loginresult") )
+			{
+		    	pElem = xLoginAnswer.FirstChildElement("distrrtgenserver")->FirstChildElement("loginresult");
+				bLoggedIn = atoi(pElem->Attribute("status"));
+				if (bLoggedIn!=1)
 				{
-					throw new ConnectionException(EL_NOTICE, "Invalid response recieved from server");
+					throw new ConnectionException(EL_ERROR, pElem->GetText());
 				}
-				memcpy(&nClientID, &ptr[4], 4);
-				nClientID = ntohl(nClientID);
 			}
-			bLoggedIn = true;
-			return nClientID;
+			else
+			{
+				throw new ConnectionException(EL_ERROR, "Error parsing XML response");
+			}
 		}
-		else if(vLogin[3] == (unsigned char)0x02)
-		{
-			throw new ConnectionException(EL_ERROR, "ClientID is not registered with this user account. Please delete the file ~user/.distrrtgen/.client and try again");
-		}
-		throw new ConnectionException(EL_ERROR, "Invalid username/password combination");
+		
+		if(xmlresponse.memory)
+          free(xmlresponse.memory);
+		
+		if (bLoggedIn==1) return true;
+			else return false;
+		
 	}
 	catch(SocketException *ex)
 	{		
+		std::cout << "Exception catched" << std::endl;
 		throw new ConnectionException(EL_NOTICE, ex->GetErrorMessage());
+		return false;
 	}
 	return false;
 }
 
-int ServerConnector::RequestWork(stWorkInfo *stWork)
+int ServerConnector::RequestWork(stWorkInfo *stWork, std::string sUsername, std::string sPassword, std::string sHostname, int nClientID, double nFrequency)
 {
 	try
 	{
-		std::ostringstream szGive;
-		szGive << (unsigned char)0xfc << (unsigned char)0x04 << (unsigned char)0x01 << (unsigned char)0x00;
-		*s << szGive.str();
-		std::string sRecieve;
-		*s >> sRecieve;
-		char *pRecieved = new char[sRecieve.length()];
-		memcpy(pRecieved, sRecieve.c_str(), sRecieve.length());
-		if(pRecieved[0] != (char)0xfc || pRecieved[1] != (char)0x04 || pRecieved[2] != (char)0x02)
+		// build xml stream to request workunit from the server
+		CURL *curl;
+  		CURLcode res;
+  		struct curl_slist *headers = NULL;
+  		headers = curl_slist_append(headers, "Content-Type: text/xml");
+  		TiXmlDocument doc;
+  		TiXmlElement* client;
+  		client = new TiXmlElement( "distrrtgenclient" );
+  		if (nClientID==0) std::cout<<"This machine has no ClientID" << std::endl;
+		client->SetAttribute("clientid", nClientID);
+  		client->SetAttribute("name", sHostname.c_str());
+  		client->SetAttribute("version", VERSION);
+  
+  		TiXmlElement* cpus;
+  		TiXmlElement* cpu;
+  		cpus = new TiXmlElement( "cpus" );
+  		cpu  = new TiXmlElement( "cpu" );		
+  		cpu->SetAttribute("currentspeed", (int)nFrequency);
+  		cpu->SetAttribute("maxspeed", (int)nFrequency);
+  		cpus->LinkEndChild(cpu);
+  		TiXmlElement* credentials;
+  		credentials = new TiXmlElement( "credentials");
+  		TiXmlElement* username;
+  		username = new TiXmlElement("username");
+  		username->LinkEndChild(new TiXmlText(sUsername.c_str()));
+  		TiXmlElement* password;
+  		password = new TiXmlElement("password");
+  		password->LinkEndChild(new TiXmlText(sPassword.c_str()));
+  		credentials->LinkEndChild(username);
+  		credentials->LinkEndChild(password);
+		//We add requestwork element in XML query
+		TiXmlElement* action;
+		action = new TiXmlElement("action");
+		action->LinkEndChild(new TiXmlText("requestwork"));
+  		client->LinkEndChild(cpus);
+  		client->LinkEndChild(credentials);
+  		client->LinkEndChild(action); //last child is requestwork
+  		doc.LinkEndChild(client);
+  		
+		//doc.Print();
+  		
+		TiXmlPrinter login;
+  		doc.Accept(&login);
+  		
+		struct MemoryStruct xmlresponse;
+  		xmlresponse.memory=NULL; /* we expect realloc(NULL, size) to work */
+  		xmlresponse.size = 0;    /* no data at this point */
+		
+  		curl = curl_easy_init();
+  		if(curl) {
+    		curl_easy_setopt(curl, CURLOPT_URL, SERVER_NAME);
+    		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&xmlresponse);
+    		curl_easy_setopt(curl, CURLOPT_POST, 1);
+    		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, login.CStr());
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+    		res = curl_easy_perform(curl);
+    		curl_easy_cleanup(curl);
+  		}
+  		TiXmlDocument xLoginAnswer;
+		if(xLoginAnswer.Parse(xmlresponse.memory))
 		{
-			delete pRecieved;
-			throw new ConnectionException(EL_NOTICE, "Invalid response recieved from server");
-		}
-		if(pRecieved[3] == (char)0x02)
-		{
-			throw new ConnectionException(EL_NOTICE, "No work left");
-		}
-		else if(pRecieved[3] == (char)0x01)
-		{
-			unsigned int nPartID;
-			memcpy(&nPartID, &pRecieved[4], sizeof(int)); // Retrieve the part id from the response
-			stWork->nPartID = ntohl(nPartID);
-
-			char *pString = &pRecieved[8]; // Set the pointer to the hash routine location
-			unsigned int nHRLength = strlen(pString);
-			char *szHashRoutine = new char[nHRLength + 1];
-			strcpy(szHashRoutine, pString);	
-			stWork->sHashRoutine.assign(szHashRoutine);
-			delete szHashRoutine;
-			pString += nHRLength + 1; // Advance the pointer to the charset
-			if(stWork->sHashRoutine == "mscache" || stWork->sHashRoutine == "halflmchall")
-			{
-				unsigned int nSaltLength = strlen(pString);
-				char *sSalt = new char[nSaltLength + 1];
-				strcpy(sSalt, pString);	
-				stWork->sSalt.assign(sSalt);
-				delete sSalt;
-				pString += nSaltLength + 1;				
-			}
-			unsigned int nCharsetLength = strlen(pString);
-			char *szCharset = new char[nCharsetLength + 1];
-			strcpy(szCharset, pString);
-			stWork->sCharset.assign(szCharset);
-			delete szCharset;
-
-			pString += nCharsetLength + 1; // Advance the pointer to the min letters
-			stWork->nMinLetters = pString[0];
-
-			pString++;
-			stWork->nMaxLetters = pString[0];
-
-			pString++;
-			stWork->nOffset = pString[0];
-
-			pString++;
-			memcpy(&stWork->nChainLength, pString, 4);
-			stWork->nChainLength = ntohl(stWork->nChainLength);
-
-			pString += 4; // Advance the pointer 4 bytes 
-			memcpy(&stWork->nChainCount, pString, 4);
-			stWork->nChainCount = ntohl(stWork->nChainCount);
-
-			delete pRecieved;
-			return true;
+			//std::cout << xmlresponse.memory << std::endl;
 		}
 		else
 		{
-			delete pRecieved;
-			throw new ConnectionException(EL_NOTICE, "Invalid response recieved from server");
+			throw new ConnectionException(EL_ERROR, "Invalid XML response received from server");
 		}
+		//Check if the server gave a clientId and we return it.
+		//Else we continue login process.
+		//All the parsing code has to be reviewed
+		//we never check element name before attribute querying...
+		
+		TiXmlElement * pElem = xLoginAnswer.FirstChildElement()->FirstChildElement("loginresult");
+	 	TiXmlAttribute * pAttrib = pElem->FirstAttribute();
+		if (!strcmp(pAttrib->Name(),"status"))
+		{
+		   	bLoggedIn = atoi(pAttrib->Value());
+			if (bLoggedIn != 1)
+			{
+				throw new ConnectionException(EL_ERROR, pElem->GetText());
+			}
+		}
+		else
+		{
+			throw new ConnectionException(EL_ERROR, "Error parsing XML response");
+		}
+		if (bLoggedIn) std::cout << " " << std::endl;
+		//We are positionning to workunit element
+		pElem = pElem->NextSiblingElement("workunit");
+		if (!pElem) std::cout << "Err. retriving workunit element" << std::endl;
+		else std::cout << " " << std::endl;
+		
+		//std::cout << " Continue Parsing XML file" << std::endl;
+		if(pElem->Attribute("partid"))
+		{
+			unsigned int tmp;
+			std::istringstream str_stream(pElem->Attribute("partid"));
+			str_stream >> tmp;
+			stWork->nPartID = tmp;
+			std::cout << "Received PartID n° : " << stWork->nPartID << std::endl; 
+		}
+		else std::cout << "not partid" << std::endl;
+		
+		if (stWork->nPartID == 0)
+		{
+			std::cout << pElem->GetText() << std::endl;
+			throw new ConnectionException(EL_ERROR, pElem->GetText());
+		}
+		else
+		{
+			std::cout << "Loading WorkUnit Details" << std::endl;
+			unsigned int itmp;
+			
+			if (pElem->Attribute("chaincount"))
+			{			
+				std::istringstream str_stream(pElem->Attribute("chaincount"));
+				str_stream >> itmp;
+				stWork->nChainCount = itmp;
+			}
+			
+			if (pElem->Attribute("minletters"))
+			{	
+				std::istringstream str_stream(pElem->Attribute("minletters"));
+				str_stream >> itmp;
+				stWork->nMinLetters = itmp;
+			}
+			
+			if (pElem->Attribute("maxletters"))
+			{
+				std::istringstream str_stream(pElem->Attribute("maxletters"));
+				str_stream >> itmp;
+				stWork->nMaxLetters = itmp;
+			}
+			if (pElem->Attribute("index"))
+			{
+				std::istringstream str_stream(pElem->Attribute("index"));
+				str_stream >> itmp;
+				stWork->nOffset = itmp;
+			}
+			if (pElem->Attribute("chainlength"))
+			{
+				std::istringstream str_stream(pElem->Attribute("chainlength"));
+				str_stream >> itmp;
+				stWork->nChainLength = itmp;
+			}
+			
+			stWork->sHashRoutine = pElem->Attribute("type");
+			stWork->sCharset = pElem->Attribute("charset");
+			stWork->sSalt = pElem->Attribute("salt");
+			
+		}		
+					
+		if(xmlresponse.memory)
+          free(xmlresponse.memory);
+	
+		return true;
+		
 	}
 	catch(SocketException* ex)
 	{
@@ -193,60 +366,122 @@ int ServerConnector::RequestWork(stWorkInfo *stWork)
 
 }
 
-int ServerConnector::SendFinishedWork(int nPartID, std::string Filename)
+int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::string sUsername, std::string sPassword)
 {
 	try
 	{
-		// Load file into memory
-		struct stat results;
-		stat(Filename.c_str(), &results);
-		char *data = new char[results.st_size];
-		std::ifstream datafile;
-		datafile.open(Filename.c_str(), std::ios::in | std::ios::binary);
-		datafile.read(data, results.st_size);
-		datafile.close();
-
-		std::ostringstream szFinished;
-		nPartID = htonl(nPartID); // Convert to Network format
-		szFinished << (unsigned char)0xfc << (unsigned char)0x05 << (unsigned char)0x01 << (unsigned char)0x01;
-		szFinished.write((const char*)&nPartID, sizeof(int));
-		*s << szFinished.str();
-
-		std::vector<unsigned char> vResponse;
-		// Recieve a response whether or not we can start the transfer
-		*s >> vResponse;
-		if(vResponse.size() < 4 || vResponse[0] != (unsigned char)0xfc || vResponse[1] != (unsigned char)0x05 || vResponse[2] != (unsigned char)0x02)
+		struct curl_httppost *post=NULL;
+ 		struct curl_httppost *last=NULL;
+		struct curl_slist *headers=NULL;
+		struct MemoryStruct xmlresponse;
+  		CURL *curl;
+		CURLcode res;
+		std::stringstream szPartname;
+		std::stringstream szUrlpost;
+		std::string sPartname;
+		std::string sUrlpost;
+		
+		xmlresponse.memory=NULL; 
+  		xmlresponse.size = 0;    
+		
+		// build filename
+		szPartname << nPartID << ".part";
+		sPartname = szPartname.str();
+		
+		//build url upload.php?username=blablabla
+		szUrlpost << UPLOAD_URL << "?username=" << sUsername << "&password=" << sPassword;
+		sUrlpost = szUrlpost.str();
+		
+		curl = curl_easy_init();
+		if (curl)
 		{
-			throw new ConnectionException(EL_NOTICE, "Invalid response recieved from server");
-		}
-		if(vResponse[3] == (unsigned char)0x02)
-		{
-			return TRANSFER_NOTREGISTERED;
-		}
-		else if(vResponse[3] == (unsigned char)0x01)
-		{ // Its okay to start the transfer			
-			std::ostringstream sStart, sEnd;
-			sStart << (unsigned char)0xfc << (unsigned char)0x05 << (unsigned char)0x01 << (unsigned char)0x02; 
-			// Signal the filetransfer starts now
-			*s << sStart.str();
-//			std::cout << "Sending " << results.st_size << " bytes of data" << std::endl;
+			curl_formadd(&post, &last,
+              CURLFORM_COPYNAME, "name",
+              CURLFORM_COPYCONTENTS, "file", CURLFORM_END);
+			curl_formadd(&post, &last,
+	 	      CURLFORM_COPYNAME, "filename",
+              CURLFORM_COPYCONTENTS, sPartname.c_str(), CURLFORM_END); 			 			
+			curl_formadd(&post, &last,
+              CURLFORM_COPYNAME, "file",
+              CURLFORM_FILE, Filename.c_str(), CURLFORM_END); //Path of the part file
+			
+			// Disable HTTP1.1 Expect:
+			headers = curl_slist_append(headers, "Expect:");
 
-			s->SendBytes(data, results.st_size);
-
-			sEnd << (unsigned char)0xfc << (unsigned char)0x05 << (unsigned char)0x01 << (unsigned char)0x03;
-			// Signal the filetransfer has ended
-			*s << sEnd.str();
-			std::vector<unsigned char> vRecieved;
-			*s >> vRecieved;
-			if(vRecieved[3] == 0x04)
+ 			// Header content-disposition
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers); 
+			std::cout << sUrlpost << " part : " << sPartname.c_str() << std::endl;
+			// Set the form info
+ 			curl_easy_setopt(curl, CURLOPT_POST, 1);
+			curl_easy_setopt(curl, CURLOPT_HTTPPOST, post);
+			curl_easy_setopt(curl, CURLOPT_URL, sUrlpost.c_str());
+ 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&xmlresponse);
+    		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+    		
+			res = curl_easy_perform(curl); /* post away! */
+			if (res == 0)
 			{
-				return TRANSFER_OK;
+				//std::cout << "Uploading of Part ID n° " << nPartID << " succeded" << std::endl;
+				// Retrieve Server XML answer
+				TiXmlDocument xUploadAnswer;
+				if(xUploadAnswer.Parse(xmlresponse.memory))
+				{
+					TiXmlElement * pElem;
+					pElem = xUploadAnswer.FirstChildElement();
+					//printf("%s\n",xmlresponse); //Debug purpose
+					if(pElem->FirstChildElement("ok"))
+					{
+						curl_formfree(post);
+						if(xmlresponse.memory)
+          					free(xmlresponse.memory);
+						return TRANSFER_OK;
+					}
+	 				else if(pElem->FirstChildElement("error"))
+					{
+						curl_formfree(post);
+						if(xmlresponse.memory)
+          					free(xmlresponse.memory);
+						throw new ConnectionException(EL_ERROR, pElem->FirstChildElement("error")->GetText());
+					}
+					else
+					{
+						throw new ConnectionException(EL_ERROR, "Unreadable error from server side");
+					}	
+				}
+				else
+				{
+					throw new ConnectionException(EL_ERROR, "Invalid XML response received from server");
+					curl_formfree(post);
+					if(xmlresponse.memory)
+          				free(xmlresponse.memory);
+					return TRANSFER_GENERAL_ERROR;
+				}
+				curl_formfree(post);
+				if(xmlresponse.memory)
+          			free(xmlresponse.memory);
+				return TRANSFER_GENERAL_ERROR;
 			}
-			return TRANSFER_GENERAL_ERROR;
+			else
+			{
+				curl_formfree(post);
+				if(xmlresponse.memory)
+          			free(xmlresponse.memory);
+				std::cout << res << std::endl;
+				throw new ConnectionException(EL_ERROR, "Error while uploading part content");
+			}
 		}
-//		std::cout << r << std::endl;
-		// r should be == "RECIEVED"
-		return TRANSFER_OK;
+		else
+		{	
+			curl_formfree(post);
+				if(xmlresponse.memory)
+          			free(xmlresponse.memory);			
+			throw new ConnectionException(EL_ERROR, "Error while creating CURL object");
+		}		
+ 		// free the post data again
+ 		curl_formfree(post);
+		if(xmlresponse.memory)
+          free(xmlresponse.memory);
+		return TRANSFER_GENERAL_ERROR;
 	}
 	catch(SocketException* ex)
 	{
@@ -254,5 +489,3 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename)
 	}
 	return TRANSFER_GENERAL_ERROR;
 }
-
-

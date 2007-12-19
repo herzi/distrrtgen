@@ -3,6 +3,7 @@
 #include "ChainWalkContext.h"
 #include <time.h>
 #include <iostream>
+
 CDataGenerationThread::CDataGenerationThread(void)
 {
 	memset(zBuffer, 0x00, sizeof(zBuffer));
@@ -20,7 +21,8 @@ void CDataGenerationThread::threadProc()
 #ifdef _WIN32
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_IDLE);
 #else
-	nice(19);
+	//child thread nice value
+	nice(16);
 #endif
 
 	const DataGenerationThreadParameters *Parameters = (const DataGenerationThreadParameters *)Params;

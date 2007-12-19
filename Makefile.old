@@ -1,14 +1,14 @@
 #****************************************************************************
 #
 # Makefile for distrrtgen 3.
-# 
-#  alesc <alexis.dagues@gmail.com>
+# Alexis Dagues aka alesc
+# alexis.dagues@gmail.com
 #
 # This is a GNU make (gmake) makefile
 #****************************************************************************
 
 # DEBUG can be set to YES to include debugging info, or NO otherwise
-DEBUG          := NO 
+DEBUG          := YES 
 
 # PROFILE can be set to YES to include profiling info, or NO otherwise
 PROFILE        := NO
@@ -24,11 +24,6 @@ CXX    := g++
 LD     := g++
 AR     := ar rc
 RANLIB := ranlib
-
-PREFIX?  := /usr/local/bin
-TMPLCONF := distrrtgen.conf
-CONFDIR  := ~/.distrrtgen
-CONFFILE := $(CONFDIR)/distrrtgen.conf
 
 DEBUG_CFLAGS     :=  -Wall -Wno-format -g -DDEBUG
 RELEASE_CFLAGS   :=  -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=i586 -msse2 -msse -O3
@@ -123,27 +118,6 @@ ${OUTPUT}: ${OBJS}
 dist:
 	bash makedistlinux
 
-install: dist configure
-		mkdir -p $(PREFIX)
-		cp distrrtgen $(PREFIX)
-
-configure:
-		@if [ `uname` = "FreeBSD" -a ! -e $(CONFFILE) ]; then   \
-				mkdir -p $(CONFDIR) ;                           \
-				sed "s|NUMCPU=.*$$|NUMCPU=`sysctl -n hw.ncpu`|" $(TMPLCONF) > $(CONFFILE); \
-				chmod 600 $(CONFFILE);                          \
-		fi
-		@if [ `uname` = "Linux" -a ! -e $(CONFFILE) ]; then  \
-				mkdir -p $(CONFDIR) ;   \
-				sed "s|NUMCPU=.*$$|NUMCPU=`grep -c ^processor /proc/cpuinfo`|" $(TMPLCONF) > $(CONFFILE); \
-				chmod 600 $(CONFFILE);	\
-		fi
-		@if [ ! -e $(CONFFILE) ]; then       \
-			mkdir -p $(CONFDIR) ;        \
-			cp $(TMPLCONF) $(CONFFILE) ; \
-			chmod 600 $(CONFFILE);       \
-		fi
-
 clean:
 	-rm -f core ${OBJS} ${OUTPUT}
 
@@ -153,3 +127,4 @@ depend:
 tinyxml.o: tinyxml.h tinystr.h
 tinyxmlparser.o: tinyxml.h tinystr.h
 tinyxmlerror.o: tinyxml.h tinystr.h
+#curl1.o: curl1.cpp

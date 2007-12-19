@@ -48,10 +48,9 @@ public:
 public:
 	int Connect();
 	void Disconnect();
-	int Login(std::string Username, std::string Password, int nUserID);
-	int SendFinishedWork(int PartID, std::string Filename);
-	int RequestWork(stWorkInfo *stWork);
+	int Login(std::string Username, std::string Password, std::string sHostname, int nUserID, double nFrequency);
+	int SendFinishedWork(int PartID, std::string Filename, std::string sUsername, std::string sPassword);
+	int RequestWork(stWorkInfo *stWork, std::string sUsername, std::string sPassword, std::string sHostname, int nClientID, double nFrequency);
 };
 
 #endif
-

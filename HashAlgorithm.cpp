@@ -8,6 +8,8 @@
 
 #include "Public.h"
 
+#include "MD5new.h" //added by alesc <alexis.dagues@gmail.com>
+
 #include <openssl/des.h>
 #include <openssl/md2.h>
 #include <openssl/md4.h>
@@ -18,6 +20,9 @@
 	#pragma comment(lib, "libeay32.lib")
 #endif
 #define MSCACHE_HASH_SIZE 16
+
+
+
 void setup_des_key(unsigned char key_56[], des_key_schedule &ks)
 {
 	des_cblock key;
@@ -123,7 +128,7 @@ void HashMD4(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const u
 
 void HashMD5(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
-	MD5(pPlain, nPlainLen, pHash);
+	MD5_NEW(pPlain, nPlainLen, pHash);
 }
 
 void HashSHA1(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)

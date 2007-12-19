@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <time.h>
+#include <sys/resource.h>
 #include "Exception.h"
 
 CRainbowTableGenerator::CRainbowTableGenerator(int nNumProcessors)
@@ -56,6 +57,7 @@ CRainbowTableGenerator::~CRainbowTableGenerator(void)
 
 int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowChainCount, std::string sHashRoutineName, std::string sCharsetName, int nPlainLenMin, int nPlainLenMax, int nRainbowTableIndex, int nRainbowChainLen, std::string sSalt)
 {
+
 //	std::fstream test("c:\\distrrtgen.log");
 //	std::streambuf *old = std::cout.rdbuf(test.rdbuf());
 	// Setup CChainWalkContext
@@ -156,13 +158,15 @@ int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowCh
 		m_pThreads[i] = new CDataGenerationThread();
 		m_pThreads[i]->Start(&options);
 	}
+		
 	int nCalculatedChains = nDataLen / 16;
 	m_nCurrentCalculatedChains = nCalculatedChains;
 	time_t tStart = time(NULL);
 	time_t tEnd;
 	int nOldCalculatedchains = GetCurrentCalculatedChains();
 	int nTotalChainSpeed = 0;
-	
+	//renice main thread to +19.
+	setpriority(PRIO_PROCESS, 0, 19);
 	while(nCalculatedChains < nRainbowChainCount)
 	{
 		tEnd = time(NULL);
@@ -208,7 +212,10 @@ int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowCh
 				m_pThreads[i]->ClearDataReadyFlag();
 			}
 		}
+		//renice main thread to +19.
+		//setpriority(PRIO_PROCESS, 0, 15);
 		Sleep(1);
+
 	}
 	// Stop the threads again and destroy them
 	for(int i = 0; i < m_nProcessorCount; i++)
@@ -221,4 +228,3 @@ int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowCh
 
 	return 0;
 }
-
