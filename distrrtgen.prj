@@ -28,12 +28,12 @@ anjuta.compatibility.level=1
 project.name=distrrtgen
 project.type=GENERIC
 project.target.type=EXECUTABLE
-project.version=3.0
-project.author=PoweBlade - alesc
-project.source.target=distrrtgen
+project.version=3
+project.author=PowerBlade - alesc
+project.source.target=distrrtgen3
 project.has.gettext=0
 project.gui.command=
-project.programming.language=C++
+project.programming.language=C_C++
 project.excluded.modules=intl
 
 project.config.extra.modules.before=
@@ -41,9 +41,9 @@ project.config.extra.modules.after=
 project.config.blocked=1
 project.config.disable.overwriting=1 1 1 1 1 1 1 1 1 
 
-project.menu.entry=distrrtgen Version 3.0
+project.menu.entry=distrrtgen Version 3
 project.menu.group=Application
-project.menu.comment=distrrtgen Version 3.0
+project.menu.comment=distrrtgen Version 3
 project.menu.icon=
 project.menu.need.terminal=0
 
@@ -80,9 +80,9 @@ module.include.files=\
 	ServerConnector.h\
 	SocketException.h\
 	Thread.h\
-	tinystr.h\
+	MD5new.h\
 	tinyxml.h\
-	MD5new.h
+	tinystr.h
 
 module.source.name=.
 module.source.type=
@@ -100,10 +100,10 @@ module.source.files=\
 	ServerConnector.cpp\
 	SocketException.cpp\
 	Thread.cpp\
-	tinystr.cpp\
 	tinyxml.cpp\
-	tinyxmlerror.cpp\
 	tinyxmlparser.cpp\
+	tinyxmlerror.cpp\
+	tinystr.cpp\
 	MD5new.cpp
 
 module.pixmap.name=.

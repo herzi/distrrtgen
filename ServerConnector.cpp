@@ -452,6 +452,7 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 				{
 					throw new ConnectionException(EL_ERROR, "Invalid XML response received from server");
 					curl_formfree(post);
+					printf("%s\n",xmlresponse.memory);
 					if(xmlresponse.memory)
           				free(xmlresponse.memory);
 					return TRANSFER_GENERAL_ERROR;

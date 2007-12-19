@@ -128,7 +128,13 @@ void HashMD4(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const u
 
 void HashMD5(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
-	MD5_NEW(pPlain, nPlainLen, pHash);
+   //MD5_NEW(pPlain, nPlainLen, pHash); /* seems to be not multi-threads compliant
+   //http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p910
+   MD5_CTX ctx;   
+   MD5_Init(&ctx);
+   MD5_Update(&ctx, pPlain, nPlainLen);
+   MD5_Final((unsigned char *) pHash, &ctx);
+
 }
 
 void HashSHA1(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)

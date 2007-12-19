@@ -149,7 +149,7 @@ int main(int argc, char* argv[])
       		strcat (cpuline,"e6");
       		nFrequency = atof (cpuline)/1000000;
       		ok = 1;
-      		break;
+      		//break;  //bug : http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p909
     	}
   	}
 	
@@ -209,13 +209,34 @@ int main(int argc, char* argv[])
 			size=ftell(partfile);
 			rewind(partfile);
 			fclose(partfile);
+			if(nTalkative <= TK_ALL)
+				std::cout << "Part file size (in bytes) : " << size << std::endl;
+			
+			if (size != MAX_PART_SIZE)
+			{
+				if(nTalkative <= TK_ALL)
+					std::cout << "Deleting " << cFileName << std::endl;
+				if( remove(cFileName) != 0 )
+				{
+					if(nTalkative <= TK_ALL)
+						std::cout << "Error deleting file, please manually delete it." << std::endl;
+					exit(-1);
+				}
+  				else
+    				if(nTalkative <= TK_ALL)
+						std::cout << "File successfully deleted." << std::endl;
+			}
 		}
-		std::cout << "Part file size (in bytes) : " << size << std::endl;
+		else
+		{
+			if(nTalkative <= TK_ALL)
+				std::cout << "No unfinished part file." << std::endl;
+		}
 			
 		if (size==MAX_PART_SIZE)
 		{
 			if(nTalkative <= TK_ALL)
-			std::cout << "File completed... try uploading" << std::endl;
+				std::cout << "File already completed... try uploading" << std::endl;
 			ServerConnector *Con = new ServerConnector();
 			while(1)
 				{
@@ -226,7 +247,7 @@ int main(int argc, char* argv[])
 							exit(0);
 						
 						int nResult = Con->SendFinishedWork(stWork.nPartID, szFileName.str(), sUsername, sPassword);
-						Con->Disconnect(); // Deprecated with XML/HTTP (destroy Con object)
+						Con->Disconnect(); // Deprecated against XML/HTTP (destroy Con object)
 						switch(nResult)			
 						{
 						case TRANSFER_OK:

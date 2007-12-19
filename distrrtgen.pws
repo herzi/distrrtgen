@@ -5,13 +5,19 @@ RunInTerminal=true
 [Project State]
 clean before build=false
 
+[filelist]
+0=/home/nous/Projects/distrrtgen-3/ServerConnector.cpp
+1=/home/nous/Projects/distrrtgen-3/rtgen_client.cpp
+2=/home/nous/Projects/distrrtgen-3/HashAlgorithm.cpp
+3=/home/nous/Projects/distrrtgen-3/MD5new.cpp
+4=/home/nous/Projects/distrrtgen-3/MD5new.h
+
 [filenumbers]
-0=423
-1=272
-2=272
-3=193
-4=169
-5=27
+0=455
+1=220
+2=133
+3=1
+4=1
 
 [filemarkers]
 0=
@@ -19,21 +25,15 @@ clean before build=false
 2=
 3=
 4=
-5=
 
 [File View]
 filter.file.unmatch=*.so *.o *.a *.la
 filter.file.ignore.hidden=0
 filter.dir.ignore.hidden=0
 
-[filelist]
-0=/home/nous/Projects/distrrtgen-2.1/ServerConnector.cpp
-1=/home/nous/Projects/distrrtgen-2.1/rtgen_client.cpp
-
 [Project Tree]
 0=0
-1=0:0
-2=0:1
+1=0:1
 
 [File Tree]
 0=0

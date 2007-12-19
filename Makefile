@@ -31,7 +31,7 @@ CONFDIR  := ~/.distrrtgen
 CONFFILE := $(CONFDIR)/distrrtgen.conf
 
 DEBUG_CFLAGS     :=  -Wall -Wno-format -g -DDEBUG
-RELEASE_CFLAGS   :=  -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=i586 -msse2 -msse -O3
+RELEASE_CFLAGS   :=  -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=i586 -msse -O3
 
 LIBS		 := -lssl -lpthread -lcurl
 
