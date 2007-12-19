@@ -1,0 +1,4 @@
+<?xml version=" 1.0" encoding="utf-8"?>
+<distrrtgenserver><workunit partid="83519" chaincount="500000" type="md5" charset="numeric" minletters="1" maxletters="12" index="0" chainlength="10000" salt="" expiration="2007-11-05 19:57:57"/>
+<workunit partid="83612" chaincount="500000" type="md5" charset="numeric" minletters="1" maxletters="12" index="1" chainlength="10000" salt="" expiration="2007-11-05 20:48:48"/>
+</distrrtgenserver>
