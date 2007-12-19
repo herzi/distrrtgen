@@ -6,9 +6,9 @@ RunInTerminal=true
 clean before build=false
 
 [filenumbers]
-0=269
-1=57
-2=25
+0=302
+1=524
+2=153
 3=29
 4=45
 5=4
@@ -29,7 +29,9 @@ filter.file.ignore.hidden=0
 filter.dir.ignore.hidden=0
 
 [filelist]
-0=/home/nous/Projects/distrrtgen-3/HashAlgorithm.cpp
+0=/home/nous/Projects/distrrtgen-3/rtgen_client.cpp
+1=/home/nous/Projects/distrrtgen-3/ServerConnector.cpp
+2=/home/nous/Projects/distrrtgen-3/HashAlgorithm.cpp
 
 [Project Tree]
 0=0

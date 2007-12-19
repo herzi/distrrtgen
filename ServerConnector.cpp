@@ -14,7 +14,7 @@
 #define UPLOAD_URL "http://distributed.freerainbowtables.com/upload.php"
 #define _FILE_OFFSET_BITS 64
 #ifndef VERSION
-	#define VERSION "3.0"
+	#define VERSION "3.0 LX"
 #endif
 
 enum TALKATIVE

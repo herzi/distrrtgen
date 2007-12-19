@@ -31,7 +31,7 @@ CONFDIR  := ~/.distrrtgen
 CONFFILE := $(CONFDIR)/distrrtgen.conf
 
 DEBUG_CFLAGS     :=  -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wall -Wno-format -g -DDEBUG
-RELEASE_CFLAGS   :=  -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=pentium4 -msse -O2 -fomit-frame-pointer
+RELEASE_CFLAGS   :=  -D_FAST_MD5_ -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=pentium3 -msse -O2 -fomit-frame-pointer
 
 LIBS		 := -lssl -lpthread -lcurl
 

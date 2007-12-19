@@ -23,7 +23,7 @@
 #endif
 #define MAX_PART_SIZE 8000000 //size of PART file
 #define CLIENT_WAIT_TIME_SECONDS 600 // Wait 10 min and try again
-#define VERSION "3.0"
+#define VERSION "3.0 LX"
 
 enum TALKATIVE
 {
@@ -159,12 +159,12 @@ int main(int argc, char* argv[])
   	{
     fgets (cpuline, sizeof(cpuline), F);
 	//test if it's a processor id line
+	/* deprecated
 	if (!strncmp(cpuline, cpunumber, strlen(cpunumber)))
 	{
-		if(nTalkative <= TK_ALL)
-		std::cout << ++nNumProcessors <<" processor(s) found." << std::endl;
-	}
 		
+	}
+    */
     // test if it's the frequency line
     if (!strncmp(cpuline, cpuprefix, strlen(cpuprefix)))
     	{
@@ -179,6 +179,9 @@ int main(int argc, char* argv[])
       		//break;  //bug : http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p909
     	}
   	}
+	nNumProcessors = sysconf(_SC_NPROCESSORS_ONLN);
+	if(nTalkative <= TK_ALL)
+		 std::cout << nNumProcessors <<" processor(s) found." << std::endl;
 	
 	if (ok == 1)
 	{
@@ -193,6 +196,11 @@ int main(int argc, char* argv[])
 	}
 	
 	#endif
+	
+	ServerConnector *Con = new ServerConnector();
+	//Con->Connect(); //deprecated
+	Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency);
+	
 	
 	// Check to see if there is something to resume from
 	stWorkInfo stWork;
@@ -264,7 +272,7 @@ int main(int argc, char* argv[])
 		{
 			if(nTalkative <= TK_ALL)
 				std::cout << "File already completed... try uploading" << std::endl;
-			ServerConnector *Con = new ServerConnector();
+			//ServerConnector *Con = new ServerConnector();
 			while(1)
 				{
 					try
@@ -343,7 +351,7 @@ int main(int argc, char* argv[])
 		CRainbowTableGenerator *pGenerator = new CRainbowTableGenerator(nNumProcessors);
 		if(nTalkative <= TK_ALL)
 			std::cout << "Generating using " << pGenerator->GetProcessorCount() << " processor(s)..." << std::endl;
-		ServerConnector *Con = new ServerConnector();				
+		//CServerConnector *Con = new ServerConnector();				
 
 		while(1)
 		{
