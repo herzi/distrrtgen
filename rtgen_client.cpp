@@ -84,9 +84,21 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 //	std::string sUsername, sPassword;
-	fConfig >> sUsername;
-	fConfig >> sPassword;
-	fConfig >> sHostname;
+	if( !(fConfig >> sUsername) )
+	{
+		std::cout << "Missing username line, check version of " << sConf.str() << std::endl;
+		return 1;
+	}
+	if( !(fConfig >> sPassword) )
+	{
+		std::cout << "Missing password line, check version of " << sConf.str() << std::endl;
+		return 1;
+	}
+	if( !(fConfig >> sHostname) )
+	{
+		std::cout << "Missing hostname line, check version of " << sConf.str() << std::endl;
+		return 1;
+	}
 	fConfig.close();
 	sUsername = sUsername.substr(9);
 	sPassword = sPassword.substr(9);

@@ -179,6 +179,7 @@ int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowCh
 #endif
 			float nPercent = (float)nCalculatedChains / (float)nRainbowChainCount;
 			nPercent *= 100;
+			std::cout << "Working on: Part " << sFilename << "," << nRainbowChainCount << "," << sHashRoutineName << "," << sCharsetName << "," << nPlainLenMin << "," << nPlainLenMax << "," << nRainbowTableIndex << "," << nRainbowChainLen << std::endl;
 			std::cout << "Current chain speed: " << ((GetCurrentCalculatedChains() - nOldCalculatedchains) / 10) << std::endl;			
 			std::cout.precision(2);
 			std::cout << "Percent completed: " << nPercent << "%" << std::endl;

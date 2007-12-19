@@ -112,22 +112,37 @@ void HashNTLM(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const 
 		UnicodePlain[i * 2] = pPlain[i];
 		UnicodePlain[i * 2 + 1] = 0x00;
 	}
-
-	MD4(UnicodePlain, nPlainLen * 2, pHash);
+	//mod:alesc
+	//MD4(UnicodePlain, nPlainLen * 2, pHash);
+	MD4_CTX ctx;   
+    MD4_Init(&ctx);
+    MD4_Update(&ctx, UnicodePlain, nPlainLen * 2);
+    MD4_Final((unsigned char *) pHash, &ctx);
 }
 
 void HashMD2(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
-	MD2(pPlain, nPlainLen, pHash);
+	//mod:alesc
+	//MD2(pPlain, nPlainLen, pHash);
+	MD2_CTX ctx;   
+    MD2_Init(&ctx);
+    MD2_Update(&ctx, pPlain, nPlainLen);
+    MD2_Final((unsigned char *) pHash, &ctx);
 }
 
 void HashMD4(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
-	MD4(pPlain, nPlainLen, pHash);
+	//mod:alesc
+	//MD4(pPlain, nPlainLen, pHash);
+	MD4_CTX ctx;   
+    MD4_Init(&ctx);
+    MD4_Update(&ctx, pPlain, nPlainLen);
+    MD4_Final((unsigned char *) pHash, &ctx);
 }
 
 void HashMD5(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
+   //mod:alesc
    //MD5_NEW(pPlain, nPlainLen, pHash); /* seems to be not multi-threads compliant
    //http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p910
    MD5_CTX ctx;   
@@ -139,12 +154,22 @@ void HashMD5(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const u
 
 void HashSHA1(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
-	SHA1(pPlain, nPlainLen, pHash);
+	//mod:alesc
+	//SHA1(pPlain, nPlainLen, pHash);
+	SHA_CTX ctx;
+	SHA1_Init(&ctx);
+	SHA1_Update(&ctx, (unsigned char *) pPlain, nPlainLen);
+	SHA1_Final(pHash, &ctx);	
 }
 
 void HashRIPEMD160(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
-	RIPEMD160(pPlain, nPlainLen, pHash);
+	//mod:alesc
+	//RIPEMD160(pPlain, nPlainLen, pHash);
+	RIPEMD160_CTX ctx;
+	RIPEMD160_Init(&ctx);
+	RIPEMD160_Update(&ctx, (unsigned char *) pPlain, nPlainLen);
+	RIPEMD160_Final(pHash, &ctx);
 }
 
 void HashMSCACHE(unsigned char *pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
@@ -153,7 +178,13 @@ void HashMSCACHE(unsigned char *pPlain, int nPlainLen, unsigned char* pHash, con
 	HashNTLM(pPlain, nPlainLen, buf, NULL);
 	//MD4(pPlain, nPlainLen, buf);
 	memcpy(buf + MSCACHE_HASH_SIZE, pSalt, nSaltLength);
-	MD4(buf, MSCACHE_HASH_SIZE + nSaltLength, pHash); 
+	//mod:alesc
+	//MD4(buf, MSCACHE_HASH_SIZE + nSaltLength, pHash);
+	MD4_CTX ctx;   
+    MD4_Init(&ctx);
+    MD4_Update(&ctx, buf, MSCACHE_HASH_SIZE + nSaltLength);
+    MD4_Final((unsigned char *) pHash, &ctx);
+	
 	free(buf);
 }
 
