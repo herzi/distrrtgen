@@ -12,9 +12,19 @@
 #define SERVER_PORT 80
 #define SERVER_NAME "http://distributed.freerainbowtables.com/communicate.php"
 #define UPLOAD_URL "http://distributed.freerainbowtables.com/upload.php"
+#define _FILE_OFFSET_BITS 64
 #ifndef VERSION
 	#define VERSION "3.0"
 #endif
+
+enum TALKATIVE
+{
+	TK_ALL = 0,
+	TK_WARNINGS,
+	TK_ERRORS
+};
+
+int nTalkative = TK_ALL;
 
 struct MemoryStruct {
     char *memory;
@@ -289,7 +299,7 @@ int ServerConnector::RequestWork(stWorkInfo *stWork, std::string sUsername, std:
 		if (bLoggedIn) std::cout << " " << std::endl;
 		//We are positionning to workunit element
 		pElem = pElem->NextSiblingElement("workunit");
-		if (!pElem) std::cout << "Err. retriving workunit element" << std::endl;
+		if (!pElem) std::cout << "Err. retrieving workunit element" << std::endl;
 		else std::cout << " " << std::endl;
 		
 		//std::cout << " Continue Parsing XML file" << std::endl;
@@ -381,6 +391,9 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 		std::string sPartname;
 		std::string sUrlpost;
 		
+		//Limitrate seems to not work with POST FORM DATA
+		curl_off_t limitrate = 0;
+		
 		xmlresponse.memory=NULL; 
   		xmlresponse.size = 0;    
 		
@@ -410,14 +423,27 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 
  			// Header content-disposition
 			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers); 
-			std::cout << sUrlpost << " part : " << sPartname.c_str() << std::endl;
+			
+			if(nTalkative <= TK_ALL)
+				std::cout << "Uploading part : " << sPartname.c_str() << std::endl;
 			// Set the form info
- 			curl_easy_setopt(curl, CURLOPT_POST, 1);
+ 			curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, (long)limitrate);
+			curl_easy_setopt(curl, CURLOPT_POST, 1);
 			curl_easy_setopt(curl, CURLOPT_HTTPPOST, post);
 			curl_easy_setopt(curl, CURLOPT_URL, sUrlpost.c_str());
  			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&xmlresponse);
     		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-    		
+    		curl_easy_setopt(curl, CURLOPT_MAX_SEND_SPEED_LARGE, limitrate);
+			curl_easy_setopt(curl, CURLOPT_MAX_RECV_SPEED_LARGE, limitrate);
+			curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 0);
+			curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 0);
+			
+			if(nTalkative <= TK_ALL)
+				curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);
+			//curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress);
+			//curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &Bar);
+			
+			
 			res = curl_easy_perform(curl); /* post away! */
 			if (res == 0)
 			{
@@ -432,6 +458,7 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 					if(pElem->FirstChildElement("ok"))
 					{
 						curl_formfree(post);
+						curl_easy_cleanup(curl);
 						if(xmlresponse.memory)
           					free(xmlresponse.memory);
 						return TRANSFER_OK;
@@ -439,9 +466,12 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 	 				else if(pElem->FirstChildElement("error"))
 					{
 						curl_formfree(post);
+						curl_easy_cleanup(curl);
 						if(xmlresponse.memory)
           					free(xmlresponse.memory);
-						throw new ConnectionException(EL_ERROR, pElem->FirstChildElement("error")->GetText());
+						std::cout << pElem->FirstChildElement("error")->GetText() << std::endl;
+						return TRANSFER_NOTREGISTERED;
+						//throw new ConnectionException(EL_ERROR, pElem->FirstChildElement("error")->GetText());
 					}
 					else
 					{
@@ -452,11 +482,13 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 				{
 					throw new ConnectionException(EL_ERROR, "Invalid XML response received from server");
 					curl_formfree(post);
+					curl_easy_cleanup(curl);
 					if(xmlresponse.memory)
           				free(xmlresponse.memory);
 					return TRANSFER_GENERAL_ERROR;
 				}
 				curl_formfree(post);
+				curl_easy_cleanup(curl);
 				if(xmlresponse.memory)
           			free(xmlresponse.memory);
 				return TRANSFER_GENERAL_ERROR;
@@ -464,6 +496,7 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 			else
 			{
 				curl_formfree(post);
+				curl_easy_cleanup(curl);
 				if(xmlresponse.memory)
           			free(xmlresponse.memory);
 				std::cout << res << std::endl;
@@ -473,12 +506,14 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 		else
 		{	
 			curl_formfree(post);
+			curl_easy_cleanup(curl);
 				if(xmlresponse.memory)
           			free(xmlresponse.memory);			
 			throw new ConnectionException(EL_ERROR, "Error while creating CURL object");
 		}		
  		// free the post data again
  		curl_formfree(post);
+		curl_easy_cleanup(curl);
 		if(xmlresponse.memory)
           free(xmlresponse.memory);
 		return TRANSFER_GENERAL_ERROR;

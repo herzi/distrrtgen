@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include "ServerConnector.h"
 #include "RainbowTableGenerator.h"
+#include "WU_mgr.h"
 #ifndef WIN32
 #include <pwd.h>
 #include <sys/types.h>
@@ -42,6 +43,7 @@ int main(int argc, char* argv[])
 	int nClientID;
     int nTalkative = TK_ALL;
 	
+	
 	if(argc > 1)
 	{
 		if(strcmp(argv[1], "-q") == 0)
@@ -53,6 +55,15 @@ int main(int argc, char* argv[])
 			nTalkative = TK_ERRORS;
 		}
 	}
+	// with which MACRO I have been compiled with..
+	#ifdef _FAST_HASH_
+		if(nTalkative <= TK_ALL)
+			std::cout << "Compiled with Fast and thread safe Hashroutines" << std::endl;
+	#endif
+	#ifdef _FAST_MD5_
+		if(nTalkative <= TK_ALL)
+			std::cout << "Compiled with Fast and thread unsafe MD5 Hashroutine" << std::endl;
+	#endif
 	// First load the client identification information
 	std::ostringstream sClientInfo;
 #ifndef WIN32
@@ -118,6 +129,10 @@ int main(int argc, char* argv[])
 		std::cout << "No Hostname configured in " << sConf.str() << std::endl;
 		return 1;
 	}
+	
+	wu_mgr *WUFile = new wu_mgr();
+	//WUFile->read("test.xml");
+	
 	
 	//if(sProcessors.substr(7).length() > 0) // Check if processor count is manually configured
 	//{
@@ -265,10 +280,16 @@ int main(int argc, char* argv[])
 						case TRANSFER_OK:
 							if(nTalkative <= TK_ALL)
 								std::cout << "Data delivered!" << std::endl;
+								remove(szFileName.str().c_str());		
+								stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
+								unlink(sResumeFile.str().c_str());
 							break;
 						case TRANSFER_NOTREGISTERED:
 							if(nTalkative <= TK_ALL)
 								std::cout << "Data was not accepted by the server. Dismissing" << std::endl;
+								remove(szFileName.str().c_str());		
+								stWork.sCharset = ""; //We let the charset is order to retry
+								unlink(sResumeFile.str().c_str()); //We remove the part but not the resume file, to restart
 							break;
 						case TRANSFER_GENERAL_ERROR:
 							if(nTalkative <= TK_ALL)
@@ -292,9 +313,16 @@ int main(int argc, char* argv[])
 						Sleep(CLIENT_WAIT_TIME_SECONDS * 1000);
 					}
 				}
-				remove(szFileName.str().c_str());		
-				stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
-				unlink(".resume");
+				
+				//remove(szFileName.str().c_str());		
+				//stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
+				/*std::ostringstream sResumeFile;
+				#ifndef WIN32
+					sResumeFile << sHomedir << "/.distrrtgen/";
+				#endif
+				sResumeFile << ".resume";*/
+				//unlink(sResumeFile.str().c_str());
+				
 		}
 		else
 		{
@@ -304,7 +332,8 @@ int main(int argc, char* argv[])
 			sprintf(cDeleteFile, "/bin/rm -f %s", cFileName);
 			system(cDeleteFile);*/
 			if(nTalkative <= TK_ALL)	
-			std::cout << "Delete Part file and restart interrupted computations..." << std::endl;
+				std::cout << "Delete Part file and restart interrupted computations..." << std::endl;
+			remove(szFileName.str().c_str());
 		}
 	}
 	try
@@ -424,10 +453,16 @@ int main(int argc, char* argv[])
 						case TRANSFER_OK:
 							if(nTalkative <= TK_ALL)
 								std::cout << "Data delivered!" << std::endl;
+							remove(szFileName.str().c_str());		
+							stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
+							unlink(sResumeFile.str().c_str());
 							break;
 						case TRANSFER_NOTREGISTERED:
 							if(nTalkative <= TK_ALL)
 								std::cout << "Data was not accepted by the server. Dismissing" << std::endl;
+							remove(szFileName.str().c_str());
+							stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
+							unlink(sResumeFile.str().c_str());							
 							break;
 						case TRANSFER_GENERAL_ERROR:
 							if(nTalkative <= TK_ALL)
@@ -451,9 +486,9 @@ int main(int argc, char* argv[])
 						Sleep(CLIENT_WAIT_TIME_SECONDS * 1000);
 					}
 				}
-				remove(szFileName.str().c_str());		
-				stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
-				unlink(".resume");
+				//remove(szFileName.str().c_str());		
+				//stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
+				//unlink(sResumeFile.str().c_str());
 			}
 			catch(SocketException *ex)
 			{

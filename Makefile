@@ -30,8 +30,8 @@ TMPLCONF := distrrtgen.conf
 CONFDIR  := ~/.distrrtgen
 CONFFILE := $(CONFDIR)/distrrtgen.conf
 
-DEBUG_CFLAGS     :=  -Wall -Wno-format -g -DDEBUG
-RELEASE_CFLAGS   :=  -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=i586 -msse -O3
+DEBUG_CFLAGS     :=  -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wall -Wno-format -g -DDEBUG
+RELEASE_CFLAGS   :=  -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=pentium4 -msse -O2 -fomit-frame-pointer
 
 LIBS		 := -lssl -lpthread -lcurl
 
@@ -95,7 +95,7 @@ all: ${OUTPUT}
 # Source files
 #****************************************************************************
 
-SRCS := tinyxml.cpp tinyxmlparser.cpp tinyxmlerror.cpp tinystr.cpp Public.cpp ChainWalkContext.cpp HashAlgorithm.cpp HashRoutine.cpp rtgen_client.cpp BaseSocket.cpp ClientSocket.cpp Exception.cpp SocketException.cpp ServerConnector.cpp Thread.cpp DataGenerationThread.cpp RainbowTableGenerator.cpp MD5new.cpp
+SRCS := tinyxml.cpp tinyxmlparser.cpp tinyxmlerror.cpp tinystr.cpp Public.cpp ChainWalkContext.cpp HashAlgorithm.cpp HashRoutine.cpp rtgen_client.cpp BaseSocket.cpp ClientSocket.cpp Exception.cpp SocketException.cpp ServerConnector.cpp Thread.cpp DataGenerationThread.cpp RainbowTableGenerator.cpp MD5new.cpp WU_mgr.cpp
 
 # Add on the sources for libraries
 SRCS := ${SRCS}

@@ -21,8 +21,6 @@
 #endif
 #define MSCACHE_HASH_SIZE 16
 
-
-
 void setup_des_key(unsigned char key_56[], des_key_schedule &ks)
 {
 	des_cblock key;
@@ -113,63 +111,82 @@ void HashNTLM(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const 
 		UnicodePlain[i * 2 + 1] = 0x00;
 	}
 	//mod:alesc
-	//MD4(UnicodePlain, nPlainLen * 2, pHash);
-	MD4_CTX ctx;   
-    MD4_Init(&ctx);
-    MD4_Update(&ctx, UnicodePlain, nPlainLen * 2);
-    MD4_Final((unsigned char *) pHash, &ctx);
+	#ifndef _FAST_HASH_
+		MD4(UnicodePlain, nPlainLen * 2, pHash);
+	#else
+		MD4_CTX ctx;   
+    	MD4_Init(&ctx);
+    	MD4_Update(&ctx, UnicodePlain, nPlainLen * 2);
+    	MD4_Final((unsigned char *) pHash, &ctx);
+	#endif
 }
 
 void HashMD2(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
 	//mod:alesc
-	//MD2(pPlain, nPlainLen, pHash);
-	MD2_CTX ctx;   
-    MD2_Init(&ctx);
-    MD2_Update(&ctx, pPlain, nPlainLen);
-    MD2_Final((unsigned char *) pHash, &ctx);
+	#ifndef _FAST_HASH_
+		MD2(pPlain, nPlainLen, pHash);
+	#else
+		MD2_CTX ctx;   
+    	MD2_Init(&ctx);
+    	MD2_Update(&ctx, pPlain, nPlainLen);
+    	MD2_Final((unsigned char *) pHash, &ctx);
+	#endif
 }
 
 void HashMD4(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
 	//mod:alesc
-	//MD4(pPlain, nPlainLen, pHash);
-	MD4_CTX ctx;   
-    MD4_Init(&ctx);
-    MD4_Update(&ctx, pPlain, nPlainLen);
-    MD4_Final((unsigned char *) pHash, &ctx);
+	#ifndef _FAST_HASH_
+		MD4(pPlain, nPlainLen, pHash);
+	#else
+		MD4_CTX ctx;   
+    	MD4_Init(&ctx);
+    	MD4_Update(&ctx, pPlain, nPlainLen);
+    	MD4_Final((unsigned char *) pHash, &ctx);
+	#endif
 }
 
 void HashMD5(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
    //mod:alesc
-   //MD5_NEW(pPlain, nPlainLen, pHash); /* seems to be not multi-threads compliant
-   //http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p910
-   MD5_CTX ctx;   
-   MD5_Init(&ctx);
-   MD5_Update(&ctx, pPlain, nPlainLen);
-   MD5_Final((unsigned char *) pHash, &ctx);
-
+   	#ifndef _FAST_HASH_
+	    MD5(pPlain, nPlainLen, pHash);
+   		//http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p910
+   	#elif _FAST_MD5_
+   		MD5_NEW(pPlain, nPlainLen, pHash); /* seems to be not thread safe ? */	
+	#else
+		MD5_CTX ctx;   
+   		MD5_Init(&ctx);
+   		MD5_Update(&ctx, pPlain, nPlainLen);
+   		MD5_Final((unsigned char *) pHash, &ctx);
+	#endif
 }
 
 void HashSHA1(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
 	//mod:alesc
-	//SHA1(pPlain, nPlainLen, pHash);
-	SHA_CTX ctx;
-	SHA1_Init(&ctx);
-	SHA1_Update(&ctx, (unsigned char *) pPlain, nPlainLen);
-	SHA1_Final(pHash, &ctx);	
+	#ifndef _FAST_HASH_
+		SHA1(pPlain, nPlainLen, pHash);
+	#else
+		SHA_CTX ctx;
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, (unsigned char *) pPlain, nPlainLen);
+		SHA1_Final(pHash, &ctx);	
+	#endif
 }
 
 void HashRIPEMD160(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
 	//mod:alesc
-	//RIPEMD160(pPlain, nPlainLen, pHash);
-	RIPEMD160_CTX ctx;
-	RIPEMD160_Init(&ctx);
-	RIPEMD160_Update(&ctx, (unsigned char *) pPlain, nPlainLen);
-	RIPEMD160_Final(pHash, &ctx);
+	#ifndef _FAST_HASH_
+		RIPEMD160(pPlain, nPlainLen, pHash);
+	#else
+		RIPEMD160_CTX ctx;
+		RIPEMD160_Init(&ctx);
+		RIPEMD160_Update(&ctx, (unsigned char *) pPlain, nPlainLen);
+		RIPEMD160_Final(pHash, &ctx);
+	#endif
 }
 
 void HashMSCACHE(unsigned char *pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
@@ -179,12 +196,14 @@ void HashMSCACHE(unsigned char *pPlain, int nPlainLen, unsigned char* pHash, con
 	//MD4(pPlain, nPlainLen, buf);
 	memcpy(buf + MSCACHE_HASH_SIZE, pSalt, nSaltLength);
 	//mod:alesc
-	//MD4(buf, MSCACHE_HASH_SIZE + nSaltLength, pHash);
-	MD4_CTX ctx;   
-    MD4_Init(&ctx);
-    MD4_Update(&ctx, buf, MSCACHE_HASH_SIZE + nSaltLength);
-    MD4_Final((unsigned char *) pHash, &ctx);
-	
+	#ifndef _FAST_HASH_
+		MD4(buf, MSCACHE_HASH_SIZE + nSaltLength, pHash);
+	#else
+		MD4_CTX ctx;   
+    	MD4_Init(&ctx);
+    	MD4_Update(&ctx, buf, MSCACHE_HASH_SIZE + nSaltLength);
+    	MD4_Final((unsigned char *) pHash, &ctx);
+	#endif	
 	free(buf);
 }
 
@@ -227,14 +246,13 @@ void HashMySQL323(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, co
 void HashMySQLSHA1(unsigned char* pPlain, int nPlainLen, unsigned char* pHash, const unsigned char *pSalt, int nSaltLength)
 {
 	unsigned char hash_stage1[SHA_DIGEST_LENGTH];
-	SHA_CTX ctx;
-
-	SHA1_Init(&ctx);
-	SHA1_Update(&ctx, (unsigned char *) pPlain, nPlainLen);
-	SHA1_Final(hash_stage1, &ctx);
-	SHA1_Init(&ctx);
-	SHA1_Update(&ctx, hash_stage1, SHA_DIGEST_LENGTH);
-	SHA1_Final(pHash, &ctx);
+		SHA_CTX ctx;
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, (unsigned char *) pPlain, nPlainLen);
+		SHA1_Final(hash_stage1, &ctx);
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, hash_stage1, SHA_DIGEST_LENGTH);
+		SHA1_Final(pHash, &ctx);
 }
 
 //*********************************************************************************
