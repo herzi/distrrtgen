@@ -1,0 +1,40 @@
+# Makefile for distrrtgen
+#  Should work on BSD make and gmake.
+#
+CXX?=g++
+PREFIX?=/usr/local/bin
+TMPLCONF=distrrtgen.conf
+CONFDIR=~/.distrrtgen
+CONFFILE=$(CONFDIR)/distrrtgen.conf
+SOURCES=Public.cpp ChainWalkContext.cpp HashAlgorithm.cpp HashRoutine.cpp rtgen_client.cpp BaseSocket.cpp ClientSocket.cpp Exception.cpp SocketException.cpp ServerConnector.cpp Thread.cpp DataGenerationThread.cpp RainbowTableGenerator.cpp
+LIBS=-lssl -lpthread 
+
+all: distrrtgen
+
+distrrtgen: $(SOURCES)
+		$(CXX) $(CXXFLAGS) $(SOURCES) $(LIBS) -o distrrtgen
+
+install: distrrtgen configure
+		mkdir -p $(PREFIX)
+		cp distrrtgen $(PREFIX)
+
+configure:
+		@if [ `uname` = "FreeBSD" -a ! -e $(CONFFILE) ]; then   \
+				mkdir -p $(CONFDIR) ;                           \
+				sed "s|NUMCPU=.*$$|NUMCPU=`sysctl -n hw.ncpu`|" $(TMPLCONF) > $(CONFFILE); \
+				chmod 600 $(CONFFILE);                          \
+		fi
+		@if [ `uname` = "Linux" -a ! -e $(CONFFILE) ]; then     \
+				mkdir -p $(CONFDIR) ;                           \
+				sed "s|NUMCPU=.*$$|NUMCPU=`grep -c ^processor /proc/cpuinfo`|" $(TMPLCONF) > $(CONFFILE); \
+				chmod 600 $(CONFFILE);                          \
+		fi
+		@if [ ! -e $(CONFFILE) ]; then                          \
+			mkdir -p $(CONFDIR) ;                           \
+			cp $(TMPLCONF) $(CONFFILE) ;                    \
+			chmod 600 $(CONFFILE);                          \
+		fi
+
+clean:
+		rm -f *.o *core *.tmp distrrtgen
+
