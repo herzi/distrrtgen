@@ -143,9 +143,14 @@ int ServerConnector::Login(std::string sUsername, std::string sPassword, std::st
     		curl_easy_setopt(curl, CURLOPT_POST, 1);
     		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, login.CStr());
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+			//curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
     		res = curl_easy_perform(curl);
     		curl_easy_cleanup(curl);
   		}
+		else
+		{
+			throw new ConnectionException(EL_ERROR, "Fatal Error on server side or check your connexion");
+		}
 		
   		//std::cout << xmlresponse.memory << std::endl;
 		TiXmlDocument xLoginAnswer;
@@ -265,7 +270,8 @@ int ServerConnector::RequestWork(stWorkInfo *stWork, std::string sUsername, std:
     		curl_easy_setopt(curl, CURLOPT_POST, 1);
     		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, login.CStr());
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-    		res = curl_easy_perform(curl);
+    		//curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
+			res = curl_easy_perform(curl);
     		curl_easy_cleanup(curl);
   		}
   		TiXmlDocument xLoginAnswer;
@@ -311,7 +317,7 @@ int ServerConnector::RequestWork(stWorkInfo *stWork, std::string sUsername, std:
 			stWork->nPartID = tmp;
 			std::cout << "Received PartID n° : " << stWork->nPartID << std::endl; 
 		}
-		else std::cout << "not partid" << std::endl;
+		else std::cout << "not a partid" << std::endl;
 		
 		if (stWork->nPartID == 0)
 		{
@@ -357,6 +363,7 @@ int ServerConnector::RequestWork(stWorkInfo *stWork, std::string sUsername, std:
 			}
 			
 			stWork->sHashRoutine = pElem->Attribute("type");
+			stWork->sExpiration = pElem->Attribute("expiration");
 			stWork->sCharset = pElem->Attribute("charset");
 			stWork->sSalt = pElem->Attribute("salt");
 			
@@ -433,10 +440,11 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 			curl_easy_setopt(curl, CURLOPT_URL, sUrlpost.c_str());
  			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&xmlresponse);
     		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-    		curl_easy_setopt(curl, CURLOPT_MAX_SEND_SPEED_LARGE, limitrate);
-			curl_easy_setopt(curl, CURLOPT_MAX_RECV_SPEED_LARGE, limitrate);
+    		//curl_easy_setopt(curl, CURLOPT_MAX_SEND_SPEED_LARGE, limitrate);
+			//curl_easy_setopt(curl, CURLOPT_MAX_RECV_SPEED_LARGE, limitrate);
 			curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 0);
 			curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 0);
+			//curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
 			
 			if(nTalkative <= TK_ALL)
 				curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);

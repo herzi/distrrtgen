@@ -22,7 +22,7 @@ void CDataGenerationThread::threadProc()
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_IDLE);
 #else
 	//child thread nice value
-	nice(16);
+	nice(14);
 #endif
 
 	const DataGenerationThreadParameters *Parameters = (const DataGenerationThreadParameters *)Params;

@@ -3,6 +3,7 @@
 #include "ChainWalkContext.h"
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 #include <time.h>
 #include <sys/resource.h>
 #include "Exception.h"
@@ -129,7 +130,8 @@ int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowCh
 	//unsigned int nDataLen = (unsigned int)GetFileLen(Partfile);
 	
 	long begin,end;
-	
+	//when file is open put pointer is already at the end, we have to rewind.
+	Partfile.seekp(0, std::ios::beg);
 	begin = Partfile.tellp();
 	Partfile.seekp(0, std::ios::end);
 	end = Partfile.tellp();
@@ -167,22 +169,21 @@ int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowCh
 	int nTotalChainSpeed = 0;
 	//renice main thread to +19.
 	setpriority(PRIO_PROCESS, 0, 19);
+		std::cout << "Working on Part: " << sFilename << "," << sHashRoutineName << "," << sCharsetName << "," << nPlainLenMin << "," << nPlainLenMax << "," << nRainbowTableIndex << std::endl;
 	while(nCalculatedChains < nRainbowChainCount)
 	{
 		tEnd = time(NULL);
 		if(tEnd - tStart > 10)
 		{
 #ifdef WIN32
-			system("cls");
+			//system("cls");
 #else
-			system("clear");
+			//system("clear");
 #endif
 			float nPercent = (float)nCalculatedChains / (float)nRainbowChainCount;
-			nPercent *= 100;
-			std::cout << "Working on: Part " << sFilename << "," << nRainbowChainCount << "," << sHashRoutineName << "," << sCharsetName << "," << nPlainLenMin << "," << nPlainLenMax << "," << nRainbowTableIndex << "," << nRainbowChainLen << std::endl;
-			std::cout << "Current chain speed: " << ((GetCurrentCalculatedChains() - nOldCalculatedchains) / 10) << std::endl;			
-			std::cout.precision(2);
-			std::cout << "Percent completed: " << nPercent << "%" << std::endl;
+			nPercent *= 100;					
+			std::cout << "Current chain speed: " << ((GetCurrentCalculatedChains() - nOldCalculatedchains) / 10) << "  -  Percent completed: " << std::fixed << std::setprecision(1) << nPercent << "%" << std::endl;
+			
 			nOldCalculatedchains = m_nCurrentCalculatedChains;
 			tStart = time(NULL);
 		}
@@ -213,11 +214,10 @@ int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowCh
 				m_pThreads[i]->ClearDataReadyFlag();
 			}
 		}
-		//renice main thread to +19.
-		//setpriority(PRIO_PROCESS, 0, 15);
-		Sleep(1);
+		Sleep(20);
 
 	}
+	std::cout << std::endl;
 	// Stop the threads again and destroy them
 	for(int i = 0; i < m_nProcessorCount; i++)
 	{
@@ -225,7 +225,6 @@ int CRainbowTableGenerator::CalculateTable(std::string sFilename, int nRainbowCh
 		delete m_pThreads[i];
 		m_pThreads[i] = NULL;
 	}	
-
 
 	return 0;
 }

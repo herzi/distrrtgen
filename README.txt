@@ -1,3 +1,11 @@
+Development Release
+
+# make configure 
+Will set up a WUList.xml file to manage a queue of jobs
+
+===================================================
+
+
 DistrRTgen 3.0 BETA
 
 Very very short readme lines :

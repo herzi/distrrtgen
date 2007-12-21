@@ -27,11 +27,13 @@ RANLIB := ranlib
 
 PREFIX?  := /usr/local/bin
 TMPLCONF := distrrtgen.conf
+XMLFILE  := WUList.xml
 CONFDIR  := ~/.distrrtgen
+CONFXML  := $(CONFDIR)/WUList.xml
 CONFFILE := $(CONFDIR)/distrrtgen.conf
 
 DEBUG_CFLAGS     :=  -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wall -Wno-format -g -DDEBUG
-RELEASE_CFLAGS   :=  -D_FAST_MD5_ -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=pentium3 -msse -O2 -fomit-frame-pointer
+RELEASE_CFLAGS   :=  -D_FAST_MD5_ -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -fomit-frame-pointer -funroll-all-loops
 
 LIBS		 := -lssl -lpthread -lcurl
 
@@ -120,13 +122,6 @@ ${OUTPUT}: ${OBJS}
 %.o : %.c
 	${CC} -c ${CFLAGS} ${INCS} $< -o $@
 
-dist:
-	bash makedistlinux
-
-install: dist configure
-		mkdir -p $(PREFIX)
-		cp distrrtgen $(PREFIX)
-
 configure:
 		@if [ `uname` = "FreeBSD" -a ! -e $(CONFFILE) ]; then   \
 				mkdir -p $(CONFDIR) ;                           \
@@ -142,6 +137,11 @@ configure:
 			mkdir -p $(CONFDIR) ;        \
 			cp $(TMPLCONF) $(CONFFILE) ; \
 			chmod 600 $(CONFFILE);       \
+		fi
+		@if [ ! -e $(CONFXML) ]; then       \
+			mkdir -p $(CONFDIR);       \
+			cp $(XMLFILE) $(CONFXML);       \
+			chmod 600 $(CONFXML);      \
 		fi
 
 clean:

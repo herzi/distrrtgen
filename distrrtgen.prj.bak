@@ -82,7 +82,9 @@ module.include.files=\
 	Thread.h\
 	MD5new.h\
 	tinyxml.h\
-	tinystr.h
+	tinystr.h\
+	WU.h\
+	WU_mgr.h
 
 module.source.name=.
 module.source.type=
@@ -104,7 +106,8 @@ module.source.files=\
 	tinyxmlparser.cpp\
 	tinyxmlerror.cpp\
 	tinystr.cpp\
-	MD5new.cpp
+	MD5new.cpp\
+	WU_mgr.cpp
 
 module.pixmap.name=.
 module.pixmap.type=

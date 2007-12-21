@@ -17,7 +17,8 @@ typedef struct
 	std::string sHashRoutine;
 	std::string sCharset;
 	std::string sSalt;
-} stWorkInfo;
+	std::string sExpiration;
+}stWorkInfo;
 
 enum ERRRORLEVEL
 {

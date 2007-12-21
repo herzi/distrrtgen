@@ -19,7 +19,9 @@
 #include <errno.h>
 #include <sys/stat.h> // For mkdir()
 #include <sys/resource.h> //renice main thread
+#include <sys/unistd.h> // daemon() + getpid()
 #define CPU_INFO_FILENAME "/proc/cpuinfo"
+#define WU_BY_CPU 3
 #endif
 #define MAX_PART_SIZE 8000000 //size of PART file
 #define CLIENT_WAIT_TIME_SECONDS 600 // Wait 10 min and try again
@@ -43,16 +45,33 @@ int main(int argc, char* argv[])
 	int nClientID;
     int nTalkative = TK_ALL;
 	
-	
-	if(argc > 1)
+	/* Thanks to Freddy for daemonize mode */
+	/* http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=10&t=56&st=0&sk=t&sd=a&start=135#p1501 */
+	for(int i = 1; i < argc; i++)
 	{
-		if(strcmp(argv[1], "-q") == 0)
+		if(strcmp(argv[i], "-q") == 0)
 		{
 			nTalkative = TK_WARNINGS;
 		}
-		else if(strcmp(argv[1], "-Q") == 0)
+		else if(strcmp(argv[i], "-Q") == 0)
 		{
 			nTalkative = TK_ERRORS;
+		}
+		if(strcmp(argv[i], "-d") == 0)
+		{
+			if(daemon(1, 1))
+			{
+				fprintf(stderr, "daemon() failed\n");
+				return 1;
+			}
+			else
+			{
+				fprintf(stdout, "Started in daemon mode.\nPID: %i\n", getpid());
+				// redirect stdout/stderr/stdin
+				freopen("distrrtgen3.log", "a+", stdout);
+				freopen("distrrtgen3.err.log", "a+", stderr);
+				freopen("/dev/null", "r", stdin);
+			}
 		}
 	}
 	// with which MACRO I have been compiled with..
@@ -130,9 +149,8 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 	
-	wu_mgr *WUFile = new wu_mgr();
-	//WUFile->read("test.xml");
-	
+	//std::cout << "==========================" << std::endl;
+	//WUFile->clean();
 	
 	//if(sProcessors.substr(7).length() > 0) // Check if processor count is manually configured
 	//{
@@ -157,16 +175,10 @@ int main(int argc, char* argv[])
 	//read lines
 	while (!feof(F))
   	{
-    fgets (cpuline, sizeof(cpuline), F);
-	//test if it's a processor id line
-	/* deprecated
-	if (!strncmp(cpuline, cpunumber, strlen(cpunumber)))
-	{
+    	fgets (cpuline, sizeof(cpuline), F);
 		
-	}
-    */
-    // test if it's the frequency line
-    if (!strncmp(cpuline, cpuprefix, strlen(cpuprefix)))
+    	// test if it's the frequency line
+    	if (!strncmp(cpuline, cpuprefix, strlen(cpuprefix)))
     	{
       		// Yes, grep the frequency
       		pos = strrchr (cpuline, ':') +2;
@@ -176,8 +188,7 @@ int main(int argc, char* argv[])
       		strcat (cpuline,"e6");
       		nFrequency = atof (cpuline)/1000000;
       		ok = 1;
-      		//break;  //bug : http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p909
-    	}
+      	}
   	}
 	nNumProcessors = sysconf(_SC_NPROCESSORS_ONLN);
 	if(nTalkative <= TK_ALL)
@@ -198,12 +209,52 @@ int main(int argc, char* argv[])
 	#endif
 	
 	ServerConnector *Con = new ServerConnector();
-	//Con->Connect(); //deprecated
-	Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency);
 	
+	//Con->Connect(); //deprecated
+	
+	//Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency);
+		
+	stWorkInfo stWork;
+	
+	// Queuing WorkUnits jobs
+	wu_mgr *WUFile = new wu_mgr();
+	std::ostringstream szXmlFile;
+	szXmlFile << sHomedir;
+	szXmlFile << "/.distrrtgen/";
+	szXmlFile << "WUList.xml";
+	std::string sXmlFile = szXmlFile.str().c_str();
+	bool bReceived=true; //set to true to enter loop
+	WUFile->read(sXmlFile);
+	
+	while( (WUFile->queueSize() < (nNumProcessors * WU_BY_CPU)) && bReceived)
+	{
+		try
+		{
+			bReceived=Con->RequestWork(&stWork, sUsername, sPassword, sHostname, nClientID, nFrequency);
+			if(bReceived)
+				WUFile->putWork(stWork);
+		}
+		catch(SocketException *ex)
+		{
+			std::cout << "Error connecting to server: " << ex->GetErrorMessage() << std::endl;
+			delete ex;
+			//Sleep(CLIENT_WAIT_TIME_SECONDS * 1000);
+			bReceived = true;
+			break;
+		}
+		catch(ConnectionException *ex)
+		{
+			if(ex->GetErrorLevel() >= nTalkative)
+			std::cout << ex->GetErrorMessage() << std::endl;
+			delete ex;
+			bReceived = true;
+			break;
+			
+			//Sleep(CLIENT_WAIT_TIME_SECONDS * 1000);
+		}
+	}
 	
 	// Check to see if there is something to resume from
-	stWorkInfo stWork;
 	std::ostringstream sResumeFile;
 #ifndef WIN32
 	sResumeFile << sHomedir << "/.distrrtgen/";
@@ -238,7 +289,8 @@ int main(int argc, char* argv[])
 		cFileName = sFileName.c_str();
 		FILE *partfile = fopen(cFileName,"rb");
 		long size;
-		if(partfile != NULL)
+		
+		if(partfile != NULL && (WUFile->isNotExpired(stWork.nPartID)))
 		{
 			fseek(partfile,0,SEEK_END);
 			size=ftell(partfile);
@@ -246,9 +298,9 @@ int main(int argc, char* argv[])
 			fclose(partfile);
 			if(nTalkative <= TK_ALL)
 				std::cout << "Part file size (in bytes) : " << size << std::endl;
-			
 			if (size != MAX_PART_SIZE)
 			{
+			/*	Do nothing.
 				if(nTalkative <= TK_ALL)
 					std::cout << "Deleting " << cFileName << std::endl;
 				if( remove(cFileName) != 0 )
@@ -260,14 +312,22 @@ int main(int argc, char* argv[])
   				else
     				if(nTalkative <= TK_ALL)
 						std::cout << "File successfully deleted." << std::endl;
+			*/
 			}
+			
 		}
 		else
 		{
 			if(nTalkative <= TK_ALL)
 				std::cout << "No unfinished part file." << std::endl;
+			//Deleting resume elements
+			remove(szFileName.str().c_str());		
+			stWork.sCharset = ""; //We let the charset is order to retry
+			unlink(sResumeFile.str().c_str()); //We remove the part but not the resume file, to restart
+			WUFile->remove(stWork.nPartID); //We remove the part from XML File
+			WUFile->clean();
 		}
-			
+		
 		if (size==MAX_PART_SIZE)
 		{
 			if(nTalkative <= TK_ALL)
@@ -280,8 +340,11 @@ int main(int argc, char* argv[])
 						Con->Connect(); //deprecated
 						if(!Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency))
 							exit(0);
-						
-						int nResult = Con->SendFinishedWork(stWork.nPartID, szFileName.str(), sUsername, sPassword);
+						int nResult;
+						if (WUFile->isNotExpired(stWork.nPartID))
+							nResult = Con->SendFinishedWork(stWork.nPartID, szFileName.str(), sUsername, sPassword);
+						else
+							nResult = TRANSFER_NOTREGISTERED;
 						Con->Disconnect(); // Deprecated against XML/HTTP (destroy Con object)
 						switch(nResult)			
 						{
@@ -291,6 +354,8 @@ int main(int argc, char* argv[])
 								remove(szFileName.str().c_str());		
 								stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
 								unlink(sResumeFile.str().c_str());
+								WUFile->remove(stWork.nPartID); //We remove the part from XML File
+								WUFile->clean();
 							break;
 						case TRANSFER_NOTREGISTERED:
 							if(nTalkative <= TK_ALL)
@@ -298,6 +363,8 @@ int main(int argc, char* argv[])
 								remove(szFileName.str().c_str());		
 								stWork.sCharset = ""; //We let the charset is order to retry
 								unlink(sResumeFile.str().c_str()); //We remove the part but not the resume file, to restart
+								WUFile->remove(stWork.nPartID); //We remove the part from XML File
+								WUFile->clean();
 							break;
 						case TRANSFER_GENERAL_ERROR:
 							if(nTalkative <= TK_ALL)
@@ -336,12 +403,9 @@ int main(int argc, char* argv[])
 		{
 			
 			// We delete the old part file
-			/*char * cDeleteFile;
-			sprintf(cDeleteFile, "/bin/rm -f %s", cFileName);
-			system(cDeleteFile);*/
 			if(nTalkative <= TK_ALL)	
 				std::cout << "Delete Part file and restart interrupted computations..." << std::endl;
-			remove(szFileName.str().c_str());
+			//remove(szFileName.str().c_str());
 		}
 	}
 	try
@@ -404,9 +468,23 @@ int main(int argc, char* argv[])
 						std::cout << "OK" << std::endl;
 						std::cout << "Requesting work...";
 					}
-					Con->RequestWork(&stWork, sUsername, sPassword, sHostname, nClientID, nFrequency);
-					if(nTalkative <= TK_ALL)
-						std::cout << "work received !" << std::endl;
+					
+					//Con->RequestWork(&stWork, sUsername, sPassword, sHostname, nClientID, nFrequency);
+					// First, we update queue list
+					WUFile->read(sXmlFile);
+					WUFile->clean();
+					bReceived = true;
+					while( WUFile->queueSize() < (nNumProcessors * WU_BY_CPU) && bReceived )
+					{
+						bReceived=Con->RequestWork(&stWork, sUsername, sPassword, sHostname, nClientID, nFrequency);
+						if(bReceived)
+							WUFile->putWork(stWork);
+						if(nTalkative <= TK_ALL && bReceived)
+							std::cout << "work received !" << std::endl;
+					}
+					// Then we get Work from the queue
+					stWork = WUFile->getWork();
+					
 					FILE *fileResume = fopen(sResumeFile.str().c_str(), "wb");
 					if(fileResume == NULL)
 					{
@@ -454,7 +532,11 @@ int main(int argc, char* argv[])
 					{
 						Con->Connect();
 						Con->Login(sUsername, sPassword, sHostname, nClientID, nFrequency);
-						int nResult = Con->SendFinishedWork(stWork.nPartID, szFileName.str(), sUsername, sPassword);
+						int nResult;
+						if(WUFile->isNotExpired(stWork.nPartID))
+							nResult = Con->SendFinishedWork(stWork.nPartID, szFileName.str(), sUsername, sPassword);
+						else 
+							nResult = TRANSFER_NOTREGISTERED;
 						Con->Disconnect();
 						switch(nResult)			
 						{
@@ -464,13 +546,17 @@ int main(int argc, char* argv[])
 							remove(szFileName.str().c_str());		
 							stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
 							unlink(sResumeFile.str().c_str());
+							WUFile->remove(stWork.nPartID); //We remove the part from XML File
+							WUFile->clean();
 							break;
 						case TRANSFER_NOTREGISTERED:
 							if(nTalkative <= TK_ALL)
 								std::cout << "Data was not accepted by the server. Dismissing" << std::endl;
 							remove(szFileName.str().c_str());
 							stWork.sCharset = ""; // Blank out the charset to indicate the work is complete
-							unlink(sResumeFile.str().c_str());							
+							unlink(sResumeFile.str().c_str());
+							WUFile->remove(stWork.nPartID); //We remove the part from XML File							
+							WUFile->clean();
 							break;
 						case TRANSFER_GENERAL_ERROR:
 							if(nTalkative <= TK_ALL)

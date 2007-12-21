@@ -12,17 +12,23 @@
 #include <list>
 #include "tinyxml.h"
 #include "WU.h"
+#include "ServerConnector.h"
 
 class wu_mgr{
     public:
         int read(const std::string&);
-       /* int modify(const string&, const string&, const string&);
-        int add(const wu&);
-        int remove(const string&);*/
+		int clean(void);
+       //int modify(const string&, const string&, const string&);
+        int remove(const int);
+		bool isNotExpired(const int);
+		stWorkInfo getWork(void);
+		int putWork(const stWorkInfo&);
+		int queueSize(void);
     private:
         std::list<wu> wu_list;
         TiXmlDocument *doc;
         std::string xml_filename;
+		int add(const wu&);
 };
 
 #endif /* _WUMGR_H */

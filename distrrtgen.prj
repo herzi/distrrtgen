@@ -84,7 +84,8 @@ module.include.files=\
 	tinyxml.h\
 	tinystr.h\
 	WU.h\
-	WU_mgr.h
+	WU_mgr.h\
+	xyssl/md4.h
 
 module.source.name=.
 module.source.type=
@@ -107,7 +108,8 @@ module.source.files=\
 	tinyxmlerror.cpp\
 	tinystr.cpp\
 	MD5new.cpp\
-	WU_mgr.cpp
+	WU_mgr.cpp\
+	MD4new.cpp
 
 module.pixmap.name=.
 module.pixmap.type=
