@@ -54,6 +54,15 @@ int main(int argc, char* argv[])
 		{
 			nTalkative = TK_ERRORS;
 		}
+		else if (strcmp (argv[1], "-h") == 0)
+		{
+			printf ("Usage: %s [-q|-Q|-h]\n\n"
+				"-q                hide messages (shows errors and warnings)\n"
+				"-Q                hide messaged and warnings (shows errors)\n"
+				"-h                show this message\n",
+				argv[0]);
+			return 0;
+		}
 	}
 	// with which MACRO I have been compiled with..
 	#ifdef _FAST_HASH_
