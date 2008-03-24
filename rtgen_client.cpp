@@ -20,7 +20,6 @@
 #include <errno.h>
 #include <sys/stat.h> // For mkdir()
 #include <sys/resource.h> //renice main thread
-#define CPU_INFO_FILENAME "/proc/cpuinfo"
 #endif
 #define MAX_PART_SIZE 8000000 //size of PART file
 #define CLIENT_WAIT_TIME_SECONDS 600 // Wait 10 min and try again
@@ -153,43 +152,12 @@ int main(int argc, char* argv[])
 	
 	// Try to catch cpu Frequency from /proc/cpuinfo
 	#ifndef WIN32
-	const char* cpuprefix = "cpu MHz";
 	const char* cpunumber = "processor";
-	FILE* F;
-	char cpuline[300+1];
-	char* pos;
 	int ok = 0;
 	nNumProcessors = 0;
 	
-	// open cpuinfo system file
-	F = fopen(CPU_INFO_FILENAME,"r");
-	if (!F) return 0;
-	
-	//read lines
-	while (!feof(F))
-  	{
-    fgets (cpuline, sizeof(cpuline), F);
-	//test if it's a processor id line
-	/* deprecated
-	if (!strncmp(cpuline, cpunumber, strlen(cpunumber)))
-	{
-		
-	}
-    */
-    // test if it's the frequency line
-    if (!strncmp(cpuline, cpuprefix, strlen(cpuprefix)))
-    	{
-      		// Yes, grep the frequency
-      		pos = strrchr (cpuline, ':') +2;
-      		if (!pos) break;
-      		if (pos[strlen(pos)-1] == '\n') pos[strlen(pos)-1] = '\0';
-      		strcpy (cpuline, pos);
-      		strcat (cpuline,"e6");
-      		nFrequency = atof (cpuline)/1000000;
-      		ok = 1;
-      		//break;  //bug : http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p909
-    	}
-  	}
+
+	nFrequency = Platform::getProcessorFrequency();
 	nNumProcessors = Platform::getProcessorCount();
 	if(nTalkative <= TK_ALL)
 		 std::cout << nNumProcessors <<" processor(s) found." << std::endl;

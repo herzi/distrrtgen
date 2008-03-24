@@ -28,7 +28,8 @@
 
 class Platform {
 public:
-	static int getProcessorCount (void);
+	static int    getProcessorCount     (void);
+	static double getProcessorFrequency (void);
 };
 
 #endif /* !PLATFORM_H */
