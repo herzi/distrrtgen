@@ -3,4 +3,13 @@ AC_INIT(distrrtgen,2007-11-30,http://www.freerainboxtables.com/phpBB3/viewforum.
 AC_PROG_CC
 AC_PROG_CXX
 
+AC_MSG_CHECKING([if this is a Mac])
+if test `uname -s` = "Darwin"; then
+	MAC_LDADD="-framework CoreServices"
+	AC_SUBST($MAC_LDADD)
+	AC_MSG_RESULT([yes, adding CoreServices framework])
+else
+	AC_MSG_RESULT([no])
+fi
+
 AC_OUTPUT(Makefile)
