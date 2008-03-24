@@ -19,27 +19,21 @@ TINYXML_USE_STL := YES
 
 #****************************************************************************
 
-CC     := gcc
-CXX    := g++
-LD     := g++
-AR     := ar rc
-RANLIB := ranlib
-
-PREFIX?  := /usr/local/bin
+PREFIX   := $(prefix)
 TMPLCONF := distrrtgen.conf
 CONFDIR  := ~/.distrrtgen
 CONFFILE := $(CONFDIR)/distrrtgen.conf
 
-DEBUG_CFLAGS     :=  -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wall -Wno-format -g -DDEBUG
-RELEASE_CFLAGS   :=  -D_FAST_MD5_ -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=pentium3 -msse -O2 -fomit-frame-pointer
+DEBUG_CFLAGS     := @CPPFLAGS@ @CFLAGS@ -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wall -Wno-format -g -DDEBUG
+RELEASE_CFLAGS   := @CPPFLAGS@ @CFLAGS@  -D_FAST_MD5_ -D_FAST_HASH_ -D_FILE_OFFSET_BITS=64 -Wno-unknown-pragmas -Wno-format -ffast-math -mno-ieee-fp -march=pentium3 -msse -O2 -fomit-frame-pointer
 
 LIBS		 := -lssl -lpthread -lcurl
 
-DEBUG_CXXFLAGS   := ${DEBUG_CFLAGS} 
-RELEASE_CXXFLAGS := ${RELEASE_CFLAGS}
+DEBUG_CXXFLAGS   := @CXXFLAGS@ ${DEBUG_CFLAGS}
+RELEASE_CXXFLAGS := @CXXFLAGS@ ${RELEASE_CFLAGS}
 
-DEBUG_LDFLAGS    := -g
-RELEASE_LDFLAGS  := 
+DEBUG_LDFLAGS    := @LDFLAGS@ -g
+RELEASE_LDFLAGS  := @LDFLAGS@
 
 ifeq (YES, ${DEBUG})
    CFLAGS       := ${DEBUG_CFLAGS}
@@ -107,7 +101,7 @@ OBJS := $(addsuffix .o,$(basename ${SRCS}))
 #****************************************************************************
 
 ${OUTPUT}: ${OBJS}
-	${LD} -o $@ ${LDFLAGS} ${OBJS} ${LIBS} ${EXTRA_LIBS}
+	$(CXX) -o $@ ${LDFLAGS} ${OBJS} ${LIBS} ${EXTRA_LIBS}
 
 #****************************************************************************
 # common rules
