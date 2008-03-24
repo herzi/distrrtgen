@@ -136,3 +136,14 @@ depend:
 tinyxml.o: tinyxml.h tinystr.h
 tinyxmlparser.o: tinyxml.h tinystr.h
 tinyxmlerror.o: tinyxml.h tinystr.h
+
+# autoconf build system support
+
+configure: configure.ac
+	autoconf
+
+config.status: configure
+	./config.status --recheck
+
+Makefile: config.status Makefile.in
+	./config.status Makefile
