@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
 	if(nTalkative <= TK_ALL)
 		 std::cout << nNumProcessors <<" processor(s) found." << std::endl;
 	
-	if (ok == 1)
+	if (nFrequency != 0.0)
 	{
 		if(nTalkative <= TK_ALL)
 			std::cout << "CPU frequency has been found : " << nFrequency << " MHz" << std::endl;
