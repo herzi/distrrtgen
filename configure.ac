@@ -5,11 +5,13 @@ AC_PROG_CXX
 
 AC_MSG_CHECKING([if this is a Mac])
 if test `uname -s` = "Darwin"; then
-	MAC_LDADD="-framework CoreServices"
-	AC_SUBST($MAC_LDADD)
+	PLATFORM_LDADD="-framework CoreServices"
 	AC_MSG_RESULT([yes, adding CoreServices framework])
 else
+	PLATFORM_CFLAGS="-march=pentium3"
 	AC_MSG_RESULT([no])
 fi
+AC_SUBST(PLATFORM_CFLAGS)
+AC_SUBST(PLATFORM_LDADD)
 
 AC_OUTPUT(Makefile)
