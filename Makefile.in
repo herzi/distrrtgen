@@ -89,7 +89,7 @@ all: ${OUTPUT}
 # Source files
 #****************************************************************************
 
-SRCS := tinyxml.cpp tinyxmlparser.cpp tinyxmlerror.cpp tinystr.cpp Public.cpp ChainWalkContext.cpp HashAlgorithm.cpp HashRoutine.cpp rtgen_client.cpp BaseSocket.cpp ClientSocket.cpp Exception.cpp SocketException.cpp ServerConnector.cpp Thread.cpp DataGenerationThread.cpp RainbowTableGenerator.cpp MD5new.cpp WU_mgr.cpp
+SRCS := tinyxml.cpp tinyxmlparser.cpp tinyxmlerror.cpp tinystr.cpp Public.cpp ChainWalkContext.cpp HashAlgorithm.cpp HashRoutine.cpp rtgen_client.cpp BaseSocket.cpp ClientSocket.cpp Exception.cpp SocketException.cpp ServerConnector.cpp Thread.cpp DataGenerationThread.cpp Linux.cpp RainbowTableGenerator.cpp MD5new.cpp WU_mgr.cpp
 
 # Add on the sources for libraries
 SRCS := ${SRCS}

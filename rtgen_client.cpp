@@ -10,6 +10,7 @@
 #include <sstream>
 #include <time.h>
 #include <stdio.h>
+#include "Platform.h"
 #include "ServerConnector.h"
 #include "RainbowTableGenerator.h"
 #include "WU_mgr.h"
@@ -189,7 +190,7 @@ int main(int argc, char* argv[])
       		//break;  //bug : http://www.freerainbowtables.com/phpBB3/viewtopic.php?f=4&p=916&sid=53804aa79a7bc4bb06cff38481889cf7#p909
     	}
   	}
-	nNumProcessors = sysconf(_SC_NPROCESSORS_ONLN);
+	nNumProcessors = Platform::getProcessorCount();
 	if(nTalkative <= TK_ALL)
 		 std::cout << nNumProcessors <<" processor(s) found." << std::endl;
 	
