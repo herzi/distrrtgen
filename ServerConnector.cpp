@@ -433,8 +433,13 @@ int ServerConnector::SendFinishedWork(int nPartID, std::string Filename, std::st
 			curl_easy_setopt(curl, CURLOPT_URL, sUrlpost.c_str());
  			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&xmlresponse);
     		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-    		curl_easy_setopt(curl, CURLOPT_MAX_SEND_SPEED_LARGE, limitrate);
+/* CURLOPT_MAX_SEND_SPEED_LARGE and CURLOPT_MAX_RECV_SPEED_LARGE were
+ * introduced in 7.15.5:
+ * http://curl.netmirror.org/changes.html */
+#if LIBCURL_VERSION_NUM >= 0x070f05
+			curl_easy_setopt(curl, CURLOPT_MAX_SEND_SPEED_LARGE, limitrate);
 			curl_easy_setopt(curl, CURLOPT_MAX_RECV_SPEED_LARGE, limitrate);
+#endif
 			curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 0);
 			curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 0);
 			
